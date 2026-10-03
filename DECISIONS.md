@@ -102,3 +102,10 @@ User supplied the active roster, services per provider, and cash prices.
 
 - Interim design published as a private Claude artifact: https://claude.ai/artifact/MKgXSFPpzZ6CqhkhqzkqEi (source: `docs/design/estimator-design.html`). Three screens: admin builder, add-a-line, patient copy (US Letter). Includes the weekly / monthly / full-plan toggle. Figma remains the eventual design home (file nj9pwmiG0l4ME6UTU9l5n8, frame A built; frame B and the modal wait for the monthly limit to reset or a plan upgrade).
 - The artifact previews an open question: patient copy shows only the selected cost view, or all three. Awaiting the user's choice. Still no approval of the design (Phase 3 gate).
+
+## Decisions (2026-10-03, later)
+
+- **Patient copy shows all three views** (weekly, monthly, full plan) plus per-line totals. No "selected view only" option. Artifact v2 reflects this.
+- **Logo:** deferred; text wordmark stays until supplied.
+- **Entra:** MHCA admin has granted consent. App credentials still need to be put in Vercel env vars (not in the repo).
+- **Medicare rate columns:** answer expected within ~48 hours. Medicare stays quarantined until then.

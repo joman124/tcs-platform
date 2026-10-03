@@ -188,14 +188,6 @@ select { width: 100%; font: 400 15px var(--font); padding: 9px 10px; border: 1px
 
   <!-- 3. PATIENT COPY -->
   <div class="stage" id="p-paper" role="tabpanel" aria-labelledby="t-paper" hidden>
-    <div class="controls">
-      <label for="pmode"><b>What the patient copy shows:</b></label>
-      <select id="pmode" style="width:auto;border-color:var(--line);background:var(--tab);color:var(--fg)">
-        <option value="selected">Only the cost view chosen in the builder</option>
-        <option value="all">All three views (weekly, monthly, full plan)</option>
-      </select>
-      <span style="color:var(--muted)">Cost view in the builder: <b id="curview">Full plan</b></span>
-    </div>
     <div class="scroll">
       <div class="paper" id="paper" aria-label="Patient copy preview, US Letter">
         <div class="brand">
@@ -211,7 +203,7 @@ select { width: 100%; font: 400 15px var(--font); padding: 9px 10px; border: 1px
   </div>
 
   <div class="notes">
-    <section><h2>On the patient copy</h2><ul><li>Service, provider, how often, per visit, total, estimated total. Nothing else.</li><li>No CPT codes, add-on rows, plan or tier names, credentialing, warnings or buttons.</li><li>No disclaimer line (your call).</li><li>Rows never split across pages; the header repeats.</li></ul></section>
+    <section><h2>On the patient copy</h2><ul><li>Service, provider, how often, per visit, total, estimated total, and the weekly, monthly and full-plan figures. Nothing else.</li><li>No CPT codes, add-on rows, plan or tier names, credentialing, warnings or buttons.</li><li>No disclaimer line (your call).</li><li>Rows never split across pages; the header repeats.</li></ul></section>
     <section><h2>Admin-only</h2><ul><li>Status chips: ready, credentialing pending, blocked.</li><li>Blocked lines are left out of every total, and printing stays off until they are fixed or removed.</li><li>Out-of-network plans offer a switch to cash.</li></ul></section>
     <section><h2>Assumptions to confirm</h2><ul><li>The wordmark is text until the logo file arrives.</li><li>Brand type is Gill Sans; this page shows Cabin where Gill Sans is missing.</li><li>Monthly = weekly × 52 ÷ 12. One-time services count only in the full plan.</li></ul></section>
   </div>
@@ -258,8 +250,7 @@ select { width: 100%; font: 400 15px var(--font); padding: 9px 10px; border: 1px
     var tv = view === 'plan' ? s.full : (view === 'weekly' ? s.weekly : s.monthly);
     $('vlabel').textContent = NAMES[view][0]; $('vtotal').textContent = fmt(tv);
     $('vnote').textContent = view === 'plan' ? ('Includes ' + fmt(s.once) + ' of one-time services.') : 'Repeating services only; one-time services are not included.';
-    $('curview').textContent = view === 'plan' ? 'Full plan' : (view === 'weekly' ? 'Weekly' : 'Monthly');
-    var plan = '';
+        var plan = '';
     LINES.forEach(function (l) { if (l.status !== 'bad') plan += '<div class="row">' + l.prov.split(',')[0] + ' · ' + l.svc + ' · ' + l.freq.replace(' sessions', '') + '</div>'; });
     $('plan').innerHTML = plan;
     $('attn').textContent = s.blocked ? ('Attention: ' + s.blocked + ' line is blocked (LPC providers cannot bill Medicare). Blocked lines are left out of the totals and printing is off until it is removed or switched.') : '';
@@ -268,7 +259,7 @@ select { width: 100%; font: 400 15px var(--font); padding: 9px 10px; border: 1px
     renderPaper(s);
   }
   function renderPaper(s) {
-    var mode = $('pmode').value;
+    var mode = 'all';
     var rows = '';
     LINES.forEach(function (l) {
       if (l.status === 'bad') return;
@@ -293,7 +284,6 @@ select { width: 100%; font: 400 15px var(--font); padding: 9px 10px; border: 1px
   $('printbtn').addEventListener('click', function () { show('paper'); });
   $('addbtn').addEventListener('click', function () { show('add'); });
   document.querySelectorAll('.seg button[data-view]').forEach(function (b) { b.addEventListener('click', function () { view = b.dataset.view; render(); }); });
-  $('pmode').addEventListener('change', render);
   $('pname').addEventListener('input', function () { renderPaper(calc()); });
 
   // add-a-line
