@@ -13,11 +13,14 @@ import {
   type Tier,
 } from './types';
 
-const T1_CREDENTIALS: readonly Credential[] = ['PsyD', 'PhD', 'MD', 'DO'];
+const T1_CREDENTIALS: readonly Credential[] = ['PsyD', 'PhD', 'MD', 'DO', 'Postdoc'];
 
-export const tierOf = (credential: Credential): Tier => (T1_CREDENTIALS.includes(credential) ? 'T1' : 'T2');
+/** null when the provider's credential is not known yet. */
+export const tierOf = (credential: Credential | null): Tier | null =>
+  credential === null ? null : T1_CREDENTIALS.includes(credential) ? 'T1' : 'T2';
 
-export const canBillMedicare = (credential: Credential): boolean => !NO_MEDICARE_CREDENTIALS.includes(credential);
+export const canBillMedicare = (credential: Credential | null): boolean =>
+  credential !== null && !NO_MEDICARE_CREDENTIALS.includes(credential);
 
 const blocked = (issues: Issue[], extra: Partial<LineResult> = {}): LineResult => ({
   ok: false,
@@ -77,7 +80,7 @@ export function resolveService(name: string, provider: Provider, data: EngineDat
     (s) =>
       s.active &&
       s.name === name &&
-      (!s.allowedTiers || s.allowedTiers.includes(tier)) &&
+      (!s.allowedTiers || (tier !== null && s.allowedTiers.includes(tier))) &&
       data.providerServices.some((ps) => ps.providerId === provider.id && ps.serviceId === s.id),
   );
 }
@@ -121,7 +124,7 @@ export function priceLine(input: LineInput, data: EngineData): LineResult {
     return blocked([block('not-offered', 'This provider does not offer this service.')]);
   }
   const tier = tierOf(provider.credential);
-  if (service.allowedTiers && !service.allowedTiers.includes(tier)) {
+  if (service.allowedTiers && (tier === null || !service.allowedTiers.includes(tier))) {
     return blocked([block('wrong-tier', 'This Fee Schedule service is not delivered by this credential.')]);
   }
 
@@ -145,9 +148,12 @@ export function priceLine(input: LineInput, data: EngineData): LineResult {
   const payment = input.payment;
   if (payment.type === 'cash') {
     if (provider.accepts === 'Insurance') return blocked([...issues, block('cash-not-accepted', 'This provider does not accept cash pay.')]);
-    if (provider.cashOverride !== undefined && service.perSession) {
-      if (!(provider.cashOverride > 0)) return blocked([...issues, block('cash-unusable', 'Provider cash override must be greater than $0.')]);
-      return finish(toCents(provider.cashOverride));
+    const link = data.providerServices.find((ps) => ps.providerId === provider.id && ps.serviceId === service.id);
+    // A provider+service override is deliberate and wins; the provider-wide override only reprices per-session services.
+    const override = link?.cashOverride ?? (service.perSession ? provider.cashOverride : undefined);
+    if (override !== undefined) {
+      if (!(override > 0)) return blocked([...issues, block('cash-unusable', 'Cash override must be greater than $0.')]);
+      return finish(toCents(override));
     }
     if (service.cashStatus !== 'ok' || service.cashPrice === null || !(service.cashPrice > 0)) {
       return blocked([...issues, block('cash-unusable', 'Cash price is $0, blank, or unparsed in the Fee Schedule.')]);
@@ -157,6 +163,9 @@ export function priceLine(input: LineInput, data: EngineData): LineResult {
 
   // ---- Insurance
   if (provider.accepts === 'Cash') return blocked([...issues, block('insurance-not-accepted', 'This provider does not accept insurance.')], { cashFallbackAvailable: true });
+  if (tier === null) {
+    return blocked([...issues, block('unknown-credential', 'Provider credential is not on file yet, so insurance cannot be priced.')], { cashFallbackAvailable: true });
+  }
   const plan = data.planMap.find((p) => p.subPlan === payment.subPlan);
   if (!plan) return blocked([...issues, block('unknown-plan', 'Plan not found in the plan list.')], { cashFallbackAvailable: true });
   if (plan.network === 'Out') {

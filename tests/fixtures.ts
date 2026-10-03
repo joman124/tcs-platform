@@ -10,6 +10,9 @@ export const data: EngineData = {
     { id: 'P5', name: 'Override Rate', credential: 'PsyD', status: 'Active', accepts: 'Both', cashOverride: 300 },
     { id: 'P6', name: 'Gone Away', credential: 'PsyD', status: 'Inactive', accepts: 'Both' },
     { id: 'P7', name: 'Pending Cred', credential: 'PsyD', status: 'Active', accepts: 'Both' },
+    { id: 'P8', name: 'Postdoc Resident', credential: 'Postdoc', status: 'Active', accepts: 'Cash' },
+    { id: 'P9', name: 'Trainee MA', credential: 'MA', status: 'Active', accepts: 'Cash' },
+    { id: 'P10', name: 'Unknown Credential', credential: null, status: 'Active', accepts: 'Both' },
   ],
   services: [
     { id: 'S1', perSession: true, name: 'Individual Counseling', active: true, cashPrice: 195, cashStatus: 'ok', allowedTiers: ['T2'] },
@@ -18,6 +21,7 @@ export const data: EngineData = {
     { id: 'S4', perSession: false, name: 'Treatment Consult', active: true, cashPrice: 0, cashStatus: 'zero' },
     { id: 'S5', perSession: true, name: 'TMS Session', active: false, cashPrice: 200, cashStatus: 'ok' },
     { id: 'S6', perSession: false, name: 'Cash Only Service', active: true, cashPrice: 95, cashStatus: 'ok' },
+    { id: 'S7', perSession: true, name: 'Couples Counseling', active: true, cashPrice: 225, cashStatus: 'ok' },
   ],
   providerServices: [
     ...['P1', 'P5', 'P7'].flatMap((p) => [{ providerId: p, serviceId: 'S2' }, { providerId: p, serviceId: 'S3' }]),
@@ -29,6 +33,13 @@ export const data: EngineData = {
     { providerId: 'P4', serviceId: 'S1' },
     { providerId: 'P4', serviceId: 'S3' },
     { providerId: 'P6', serviceId: 'S2' },
+    { providerId: 'P8', serviceId: 'S2', cashOverride: 195 },
+    { providerId: 'P8', serviceId: 'S3' },
+    { providerId: 'P9', serviceId: 'S1', cashOverride: 95 },
+    { providerId: 'P9', serviceId: 'S7' },
+    { providerId: 'P10', serviceId: 'S6' },
+    { providerId: 'P10', serviceId: 'S2' },
+    { providerId: 'P10', serviceId: 'S1' },
   ],
   rates: [
     { serviceId: 'S1', payer: 'Aetna', tier: 'T2', total: 103.31, status: 'OK' },

@@ -3,7 +3,8 @@ export type Tier = 'T1' | 'T2'; // T1 = PhD/PsyD/MD/DO, T2 = LPC/LCSW/NP/PA
 
 export type Credential =
   | 'PsyD' | 'PhD' | 'MD' | 'DO'
-  | 'PA' | 'PA-C' | 'NP' | 'PMHNP' | 'LCSW' | 'LPC' | 'LAC' | 'LMFT';
+  | 'PA' | 'PA-C' | 'NP' | 'PMHNP' | 'LCSW' | 'LPC' | 'LAC' | 'LMFT'
+  | 'Postdoc' | 'BA' | 'MA';
 
 export type ProviderStatus = 'Active' | 'Onboarding' | 'Inactive' | 'Needs review';
 export type Accepts = 'Cash' | 'Insurance' | 'Both';
@@ -11,10 +12,11 @@ export type Accepts = 'Cash' | 'Insurance' | 'Both';
 export interface Provider {
   id: string;
   name: string;
-  credential: Credential;
+  /** null = credential not yet known: cash lines only, insurance blocked. */
+  credential: Credential | null;
   status: ProviderStatus;
   accepts: Accepts;
-  /** Dollars. Blank (undefined) = use the Fee Schedule cash price. */
+  /** Dollars. Blank (undefined) = use the Fee Schedule cash price. Applies only to per-session services. */
   cashOverride?: number;
 }
 
@@ -75,12 +77,14 @@ export interface PayerInfo {
 }
 
 /** Credentials that cannot bill Medicare directly (they bill under a PsyD). */
-export const NO_MEDICARE_CREDENTIALS: readonly Credential[] = ['LPC', 'LAC', 'LMFT'];
+export const NO_MEDICARE_CREDENTIALS: readonly Credential[] = ['LPC', 'LAC', 'LMFT', 'Postdoc', 'BA', 'MA'];
 
 /** ProviderServices tab: which Fee Schedule services each provider offers. */
 export interface ProviderService {
   providerId: string;
   serviceId: string;
+  /** Dollars. Cash price for this provider and service only; wins over the provider-wide override. */
+  cashOverride?: number;
 }
 
 export interface EngineData {

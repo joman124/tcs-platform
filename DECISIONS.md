@@ -68,3 +68,15 @@ Findings: Billing copy is 160×73 with 12 tabs (not ~111×51); "Non-covered" col
 - **Cash override rule (assumption):** a provider's cash override applies only to services flagged per-session (counseling, couples, group, med management, etc.), never to evaluation bundles. Workbook `Services` gained column L "Per-session service" (seeded: single-visit services = Y).
 - LPC/LAC/LMFT + Medicare is blocked with no cash fallback offered (Medicare private-contract rules). Out-of-network, uncredentialed, quarantined and unusable-rate cases block the insurance line and offer a cash switch.
 - Open: does the patient copy print the selected view or all three views?
+
+## Roster and pricing update (2026-10-03)
+
+User supplied the active roster, services per provider, and cash prices.
+
+- **Cash prices:** individual counseling $195 master's-level (matches Fee Schedule); **licensed doctoral $250**; **postdoctoral residents (Dr. Lee, Dr. Nine, Dr. Arbuckle-Washington) $195**; **Autumn Prak (BA) and Gentry Tays (MA): cash only, $95 per 60-min individual session**. 60 minutes is always the assumption. **Couples $225** (Fee Schedule still says $195; workbook `Services!M` overrides, Billing should update the source).
+- **Mechanism:** new `ProviderServices` column E "Cash price override" (per provider + service), so $95 applies to Autumn/Gentry individual counseling only (group stays at the standard $80; confirm). Engine: provider+service override wins, then provider-wide override (per-session services only).
+- **New credentials:** Postdoc (tier T1, no Medicare, cash only assumed), BA and MA (tier T2, cash only). Engine allows a null credential (cash on tier-free services only).
+- **Roster applied:** 35 providers; 117 provider-service links. Active per the user's list: Dr. John (Mansoor), Dr. Shasteen, Dr. Lee, Dr. Nine, Dr. Arbuckle-Washington, John-Eli Garay, Tara (Iacono), Stephanie, Julianne (Haddad), Kimberley (Dixon), Gentry, Autumn, Gregg (Bagdade), Mike (Hanafin), Glenn (Goodrich, leaving soon), Mirna (Pacheco), Emily (Lyon), Alyssa (Bruns), Devon (Hoepfner), Nestazia (Khamis), Raul (Rivera), Denise, Amber. Resolves earlier open items: Garay and Hoepfner are Active. Not on the list, now **Inactive** (confirm): Palsdottir, Northup, Cabanillas, Maupin. Previous staff kept.
+- **Assumptions to confirm:** "ADHD assessment" = ADHD Evaluation + ADHD Abbreviated; Shasteen's "ALL assessment" = all testing services (not Mental Health Assessment); "neuro" = Neurofeedback intake + 80-min + 30-min; "TMS pints" = TMS initial only, other TMS providers get all three TMS services (TMS is inactive in the estimator); "iop intake" linked to the IOP service (inactive); "med mgmt" = all three med-management services (not Psychiatric Intake); postdocs cash only.
+- **Not linked (need answers):** "functional psych appts" (Tara, Amber) has no Fee Schedule service; Gentry/Autumn "ADHD testing with a supervisor" (price unknown); Mental Health Assessment has no provider.
+- **Placeholders:** Stephanie, Denise and Amber need last names and credentials (cash only until then); postdocs need first names.

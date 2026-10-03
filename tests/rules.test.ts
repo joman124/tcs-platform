@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { plansForProvider, priceLine, providersForService, resolveService, serviceNames, type LineInput } from '../src/engine';
+import { canBillMedicare, plansForProvider, priceLine, providersForService, resolveService, serviceNames, tierOf, type LineInput } from '../src/engine';
 import { data } from './fixtures';
 
 const weekly = (perWeek: number, weeks: number) => ({ kind: 'weekly' as const, perWeek, weeks });
@@ -107,6 +107,53 @@ describe('insurance lines', () => {
   });
 });
 
+describe('provider+service cash overrides (roster pricing)', () => {
+  it('licensed doctor $250 vs postdoc $195 for the same patient-facing service', () => {
+    expect(priceLine(line({ providerId: 'P1' }), data).perVisitCents).toBe(25000);
+    expect(priceLine(line({ providerId: 'P8' }), data).perVisitCents).toBe(19500);
+  });
+  it('master-level and trainee providers resolve to the right Fee Schedule service', () => {
+    expect(resolveService('Individual Counseling', data.providers.find((p) => p.id === 'P8')!, data)?.id).toBe('S2');
+    expect(priceLine(line({ serviceId: 'S1', providerId: 'P2', payment: { type: 'cash' } }), data).perVisitCents).toBe(19500);
+  });
+  it('a $95-per-session provider is priced at $95 only on the service with the override', () => {
+    expect(priceLine(line({ serviceId: 'S1', providerId: 'P9' }), data).perVisitCents).toBe(9500);
+    expect(priceLine(line({ serviceId: 'S7', providerId: 'P9' }), data).perVisitCents).toBe(22500); // couples at the standard price
+  });
+  it('a provider+service override wins over the provider-wide override, even on an evaluation bundle', () => {
+    const d = {
+      ...data,
+      providers: data.providers.map((p) => (p.id === 'P5' ? { ...p, cashOverride: 300 } : p)),
+      providerServices: [...data.providerServices.filter((x) => !(x.providerId === 'P5' && x.serviceId === 'S3')), { providerId: 'P5', serviceId: 'S3', cashOverride: 1500 }],
+    };
+    expect(priceLine(line({ serviceId: 'S3', providerId: 'P5' }), d).perVisitCents).toBe(150000);
+    expect(priceLine(line({ serviceId: 'S2', providerId: 'P5' }), d).perVisitCents).toBe(30000);
+  });
+  it('rejects a $0 override', () => {
+    const d = { ...data, providerServices: data.providerServices.map((x) => (x.providerId === 'P8' && x.serviceId === 'S2' ? { ...x, cashOverride: 0 } : x)) };
+    expect(codes(priceLine(line({ providerId: 'P8' }), d))).toContain('cash-unusable');
+  });
+});
+
+describe('credential edge cases', () => {
+  it('postdoc, BA and MA cannot bill Medicare and are cash only', () => {
+    expect(codes(priceLine(line({ providerId: 'P8', payment: { type: 'insurance', subPlan: 'Aetna Commercial' } }), data))).toContain('insurance-not-accepted');
+  });
+  it('blank credential: cash works on tier-free services, insurance and tiered services are blocked', () => {
+    expect(priceLine(line({ serviceId: 'S6', providerId: 'P10' }), data).perVisitCents).toBe(9500);
+    expect(codes(priceLine(line({ serviceId: 'S6', providerId: 'P10', payment: { type: 'insurance', subPlan: 'Aetna Commercial' } }), data))).toContain('unknown-credential');
+    expect(codes(priceLine(line({ serviceId: 'S2', providerId: 'P10' }), data))).toContain('wrong-tier');
+  });
+  it('tierOf and canBillMedicare', () => {
+    expect(tierOf('Postdoc')).toBe('T1');
+    expect(tierOf('MA')).toBe('T2');
+    expect(tierOf(null)).toBeNull();
+    expect(canBillMedicare('PsyD')).toBe(true);
+    expect(canBillMedicare('Postdoc')).toBe(false);
+    expect(canBillMedicare(null)).toBe(false);
+  });
+});
+
 describe('frequency', () => {
   it('per week x weeks', () => {
     const r = priceLine(line({ providerId: 'P5', frequency: weekly(2, 6) }), data);
@@ -143,7 +190,7 @@ describe('frequency', () => {
 
 describe('pickers', () => {
   it('lists one entry per active patient-facing name', () => {
-    expect(serviceNames(data)).toEqual(['ADHD Evaluation', 'Cash Only Service', 'Individual Counseling', 'Treatment Consult']);
+    expect(serviceNames(data)).toEqual(['ADHD Evaluation', 'Cash Only Service', 'Couples Counseling', 'Individual Counseling', 'Treatment Consult']);
   });
   it('resolves the Fee Schedule service by provider tier', () => {
     const psyd = data.providers.find((p) => p.id === 'P1')!;
@@ -153,7 +200,7 @@ describe('pickers', () => {
   });
   it('lists only active providers who offer the service', () => {
     const ids = providersForService('Individual Counseling', data).map((p) => p.id).sort();
-    expect(ids).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P7']); // P6 inactive
+    expect(ids).toEqual(['P1', 'P2', 'P3', 'P4', 'P5', 'P7', 'P8', 'P9']); // P6 inactive; P10 has no credential so cannot be offered tiered services
   });
   it('shows only plans the provider is credentialed (or pending) for, with network flags', () => {
     const plans = plansForProvider(data.providers.find((p) => p.id === 'P1')!, data).map((p) => p.subPlan).sort();
