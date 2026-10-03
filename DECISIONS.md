@@ -52,3 +52,11 @@ Findings: Billing copy is 160×73 with 12 tabs (not ~111×51); "Non-covered" col
 - Services proposed from the Fee Schedule (30). TMS, Treatment Consult ($0 cash), Testing Consultation, and IOP are marked inactive. Optional add-ons excluded by default.
 - Availability, ProviderServices, KPI, monthly minimums, and cash overrides left blank (no data invented).
 - Verification: LibreOffice is unavailable in this environment, so the full workbook was not recalculated. SUMIFS/COUNTIFS logic was checked with a Python formula engine (32/32 matches vs an independent calculation); the SUMPRODUCT array form used in ContractedRates is standard Excel but unverified until opened in Excel.
+
+## Phase 3 progress (2026-10-03)
+
+- Brand tokens read from `mhca_guidelines 2021.pdf` (CorporateDrive). Figma file: https://www.figma.com/design/nj9pwmiG0l4ME6UTU9l5n8 (team "John Mansoor's team", Starter plan, seat View).
+- Figma has no Gill Sans; **Cabin** (Gill Sans-inspired Google font) is the design stand-in. App font stack: Gill Sans, Gill Sans MT, Cabin, Calibri, sans-serif (assumption).
+- Built so far: variable collection "MHCA Brand" (8 brand colors + white, spacing, radius, font family) and frame **A. Admin Builder** (sample data, fictional patient). A cleanup fix (clear stray white fills, shorten Medicare chip) was applied but NOT visually re-checked.
+- Blocked: Figma MCP tool-call limit reached on the Starter plan. Not yet built: frame **B. Patient Copy** (US Letter) and the add-line modal (Cash/Insurance + plan picker).
+- Logo asset not located; the frames use a text wordmark placeholder.
