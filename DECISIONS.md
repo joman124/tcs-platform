@@ -121,3 +121,10 @@ User supplied the active roster, services per provider, and cash prices.
 - Demo mode (`DEMO_MODE=1`) uses invented data with a SAMPLE DATA watermark and turns itself off when real directory/Entra settings exist.
 - **Tests:** 79 unit tests plus 44 browser checks (cash-only, insurance-only, LPC + Medicare block, PsyD vs LPC rates, testing bundle, split service, three cost views, patient-copy contents, 30-line page break and Letter size, clear after print, reload/idle clear, two admins in separate browsers, no patient name in any request, server rejects name-bearing log rows, sign-in required outside demo mode). One bug found and fixed by the browser tests: a tall sticky footer covered the Add button with many lines.
 - Sample output: `docs/samples/sample-patient-copy.pdf` (demo data, watermarked).
+
+## Vercel (2026-10-03)
+
+- Project `mhca-estimator` (team joman124's projects, id prj_KSedFjI4PAgnMJ6r568WZV7TJGff) linked to GitHub `joman124/tcs-platform`, production branch `main` (which does not contain the app yet). Vercel Authentication protects deployments (`all_except_custom_domains`).
+- `DEMO_MODE=1` is set for the **Preview** environment only (invented data, no sign-in, SAMPLE DATA watermark). Production has no env vars yet: it needs the Entra and directory settings from `.env.example`, set by the user in Vercel.
+- The first deployment was created from the feature branch but Vercel promoted it to the project's production alias (`mhca-estimator.vercel.app`) because the project had no production deployment. With no Entra settings it shows a configuration error and serves no data. **Nothing has been intentionally released to production; production release still needs the user's approval.**
+- Redirect URI to register in Entra for the stable domain: `https://mhca-estimator.vercel.app/api/auth/callback/microsoft-entra-id` (preview URLs change per deployment, so sign-in for real data should run on a stable domain).
