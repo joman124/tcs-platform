@@ -97,3 +97,8 @@ User supplied the active roster, services per provider, and cash prices.
 - New providers: **Stephanie Tavener, PA**; **Denish Gusich, PMHNP** (spelled "Denish" by the user; earlier "Denise", confirm); **Amber Tessette, PMHNP**. No credentialing on file, so cash only until recorded. Postdoc first names still needed.
 - **Log storage: SharePoint list in the MHCA tenant, de-identified only.** Spec in `docs/estimate-log-sharepoint.md`, column definitions in `docs/estimate-log-list.json`, row builder in `src/engine/log.ts` (64 tests total). Retention and viewers undecided. Needs an Entra app with Sites.Selected on one site (admin consent).
 - **Design path:** start with a Claude artifact; the user wants Figma eventually (Figma MCP limit resets monthly; frame A and variables already exist in the Figma file).
+
+## Design artifact (2026-10-03)
+
+- Interim design published as a private Claude artifact: https://claude.ai/artifact/MKgXSFPpzZ6CqhkhqzkqEi (source: `docs/design/estimator-design.html`). Three screens: admin builder, add-a-line, patient copy (US Letter). Includes the weekly / monthly / full-plan toggle. Figma remains the eventual design home (file nj9pwmiG0l4ME6UTU9l5n8, frame A built; frame B and the modal wait for the monthly limit to reset or a plan upgrade).
+- The artifact previews an open question: patient copy shows only the selected cost view, or all three. Awaiting the user's choice. Still no approval of the design (Phase 3 gate).

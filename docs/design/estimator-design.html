@@ -1,0 +1,341 @@
+<title>Treatment Plan Estimator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cabin:wght@400;500;600&display=swap">
+<style>
+/* Layout: one tab bar over three artboards (Admin Builder, Add line, Patient copy) on a quiet canvas.
+   Palette: MHCA brand guidelines (navy, forest, wine, gold + sky, mint, rose, stone).
+   Type: Gill Sans (brand), Cabin as the web stand-in, Calibri after that. */
+:root {
+  --bg: #F3F2EC; --fg: #001654; --muted: #4A5578; --line: #D6D3C6; --canvas: #E4E1D4; --tab: #FFFFFF; --tab-on: #001654; --tab-on-fg: #EAE8DF;
+  --navy: #001654; --forest: #053A30; --wine: #510722; --gold: #CB9700;
+  --sky: #ABC8E7; --mint: #9ED8B3; --rose: #D5A9A5; --stone: #EAE8DF; --white: #FFFFFF;
+  --font: "Gill Sans", "Gill Sans MT", "Cabin", Calibri, sans-serif;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg: #0A1128; --fg: #EAE8DF; --muted: #A9B3D0; --line: #26335F; --canvas: #101A3D; --tab: #101A3D; --tab-on: #ABC8E7; --tab-on-fg: #001654; color-scheme: dark } }
+:root[data-theme="dark"] { --bg: #0A1128; --fg: #EAE8DF; --muted: #A9B3D0; --line: #26335F; --canvas: #101A3D; --tab: #101A3D; --tab-on: #ABC8E7; --tab-on-fg: #001654; color-scheme: dark }
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--fg); font: 400 15px/1.45 var(--font); padding-inline: 16px; padding-block: 24px 48px; }
+.wrap { max-width: 1200px; margin-inline: auto; display: flex; flex-direction: column; gap: 20px; }
+h1 { font-size: 26px; font-weight: 600; margin: 0; text-wrap: balance; }
+.sub { color: var(--muted); margin: 4px 0 0; max-width: 70ch; }
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+.tab { font: 500 15px var(--font); padding: 9px 16px; border: 1px solid var(--line); background: var(--tab); color: var(--fg); border-radius: 8px; cursor: pointer; }
+.tab[aria-selected="true"] { background: var(--tab-on); color: var(--tab-on-fg); border-color: var(--tab-on); }
+.tab:focus-visible, .seg button:focus-visible, .opt:focus-visible, select:focus-visible, input:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; }
+.stage { background: var(--canvas); border-radius: 12px; padding: 16px; min-width: 0; }
+.scroll { overflow-x: auto; }
+.notes { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+.notes section { min-width: 0; }
+.notes h2 { font-size: 15px; font-weight: 600; margin: 0 0 6px; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
+.notes ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 4px; }
+
+/* ---------- Artboards (brand colors are fixed: this is the app, not the page chrome) ---------- */
+.board { font-family: var(--font); color: var(--navy); background: var(--stone); border-radius: 8px; overflow: hidden; width: 1100px; display: flex; flex-direction: column; }
+.hdr { background: var(--navy); color: var(--stone); padding: 18px 28px; display: flex; align-items: baseline; gap: 16px; }
+.hdr small { color: var(--sky); font-weight: 500; font-size: 14px; }
+.hdr h3 { margin: 0; font-size: 24px; font-weight: 600; }
+.body { padding: 24px 28px; display: flex; flex-direction: column; gap: 18px; }
+.pname { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.field { background: var(--white); border: 1px solid var(--navy); border-radius: 8px; padding: 9px 14px; width: 320px; font: 400 15px var(--font); color: var(--navy); }
+.hint { font-size: 13px; color: var(--forest); }
+.card { background: var(--white); border: 1px solid var(--navy); border-radius: 10px; overflow: hidden; }
+table { border-collapse: collapse; width: 100%; }
+th { background: var(--sky); color: var(--navy); text-align: left; font-weight: 600; font-size: 14px; padding: 11px 14px; }
+td { padding: 13px 14px; border-top: 1px solid var(--stone); vertical-align: middle; font-size: 15px; }
+.num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.chip { display: inline-block; padding: 4px 12px; border-radius: 14px; font-size: 13px; font-weight: 500; white-space: nowrap; }
+.ok { background: var(--mint); color: var(--forest); } .warn { background: var(--rose); color: var(--wine); } .bad { background: var(--wine); color: var(--stone); } .info { background: var(--sky); color: var(--navy); }
+tr.blocked td { color: var(--wine); }
+tr.blocked .num { text-decoration: line-through; text-decoration-thickness: 1px; }
+.btn { font: 600 15px var(--font); border: 0; border-radius: 8px; padding: 11px 22px; cursor: pointer; background: var(--navy); color: var(--stone); }
+.btn.light { background: var(--stone); color: var(--navy); } .btn.sky { background: var(--sky); color: var(--navy); }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.foot { background: var(--navy); color: var(--stone); padding: 18px 28px; display: flex; gap: 28px; align-items: flex-start; flex-wrap: wrap; border-top: 3px solid var(--gold); }
+.foot .plan { flex: 1 1 360px; min-width: 0; }
+.foot .lbl { font-size: 13px; font-weight: 600; color: var(--sky); }
+.foot .plan div.row { font-size: 14px; }
+.foot .total { min-width: 200px; }
+.foot .big { font-size: 34px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.foot .small { font-size: 12px; color: var(--sky); max-width: 230px; }
+.seg { display: inline-flex; background: var(--sky); border-radius: 8px; padding: 3px; gap: 2px; margin-top: 8px; }
+.seg button { font: 500 14px var(--font); background: transparent; color: var(--navy); border: 0; padding: 6px 12px; border-radius: 6px; cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--navy); color: var(--stone); }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-left: auto; }
+.attn { font-size: 13px; color: var(--wine); max-width: 80ch; }
+
+/* modal board */
+.modal { background: var(--white); border: 1px solid var(--navy); border-radius: 12px; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; max-width: 760px; margin-inline: auto; width: 100%; box-shadow: 0 10px 30px rgba(0,22,84,.25); }
+.modal h4 { margin: 0; font-size: 20px; font-weight: 600; }
+.steps { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.steps label, .lbl2 { font-size: 13px; font-weight: 600; display: block; margin-bottom: 4px; }
+select { width: 100%; font: 400 15px var(--font); padding: 9px 10px; border: 1px solid var(--navy); border-radius: 8px; background: var(--white); color: var(--navy); }
+.pay { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.opt { text-align: left; font: 400 15px var(--font); border: 2px solid var(--navy); border-radius: 10px; padding: 12px 14px; background: var(--white); color: var(--navy); cursor: pointer; }
+.opt[aria-pressed="true"] { background: var(--navy); color: var(--stone); }
+.opt[disabled] { border-color: var(--sky); color: #6B7A99; cursor: not-allowed; background: var(--stone); }
+.opt b { display: block; font-weight: 600; }
+.plans { display: flex; flex-direction: column; gap: 6px; }
+.plan-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; border: 1px solid var(--sky); border-radius: 8px; padding: 9px 12px; }
+.plan-row.sel { border: 2px solid var(--navy); background: var(--stone); }
+.rate { display: flex; align-items: baseline; gap: 10px; background: var(--stone); border-radius: 8px; padding: 10px 14px; }
+.rate b { font-size: 24px; font-variant-numeric: tabular-nums; }
+.freq { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; align-items: end; }
+.freq input { width: 100%; font: 400 15px var(--font); padding: 9px 10px; border: 1px solid var(--navy); border-radius: 8px; color: var(--navy); background: var(--white); }
+.lineout { display: flex; gap: 20px; flex-wrap: wrap; font-variant-numeric: tabular-nums; }
+.lineout div { background: var(--stone); border-radius: 8px; padding: 8px 14px; }
+.lineout small { display: block; font-size: 12px; color: var(--forest); }
+.lineout b { font-size: 18px; }
+
+/* patient copy */
+.paper { width: 816px; min-height: 1056px; background: #FFFFFF; color: var(--navy); font-family: var(--font); padding: 72px 72px 60px; display: flex; flex-direction: column; gap: 28px; margin-inline: auto; box-shadow: 0 6px 24px rgba(0,22,84,.2); }
+.brand { display: flex; justify-content: space-between; align-items: flex-end; gap: 16px; border-bottom: 3px solid var(--gold); padding-bottom: 16px; }
+.mark { font-size: 12px; letter-spacing: .14em; font-weight: 600; line-height: 1.5; }
+.mark b { display: block; font-size: 20px; letter-spacing: .06em; }
+.contact { font-size: 13px; text-align: right; }
+.meta { display: flex; justify-content: space-between; font-size: 16px; }
+.meta b { font-weight: 600; }
+.paper table th { background: var(--sky); font-size: 13px; padding: 9px 10px; }
+.paper table td { padding: 12px 10px; font-size: 14px; border-top: 1px solid var(--stone); }
+.tot { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; border-top: 3px solid var(--gold); padding-top: 14px; }
+.tot .l { font-size: 14px; font-weight: 600; } .tot .v { font-size: 32px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.three { display: flex; gap: 24px; justify-content: flex-end; font-size: 13px; flex-wrap: wrap; }
+.three div { text-align: right; } .three b { display: block; font-size: 16px; font-variant-numeric: tabular-nums; }
+.controls { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; font-size: 14px; }
+@media (prefers-reduced-motion: no-preference) { .tab, .btn, .opt { transition: background-color .12s; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>Treatment Plan Estimator</h1>
+    <p class="sub">Design for approval. Three screens with sample data (a made-up patient, real fee-schedule prices). Click the tabs, the cost-view buttons and the payment options to try it. Printing happens in the real app; this page only previews the layout.</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Screens">
+    <button class="tab" role="tab" id="t-builder" aria-selected="true" data-tab="builder">1. Admin builder</button>
+    <button class="tab" role="tab" id="t-add" aria-selected="false" data-tab="add">2. Add a line</button>
+    <button class="tab" role="tab" id="t-paper" aria-selected="false" data-tab="paper">3. Patient copy</button>
+  </div>
+
+  <!-- 1. ADMIN BUILDER -->
+  <div class="stage" id="p-builder" role="tabpanel" aria-labelledby="t-builder"><div class="scroll">
+    <div class="board">
+      <div class="hdr"><small>Mental Health Center of America</small><h3>Treatment Plan Estimate</h3></div>
+      <div class="body">
+        <div class="pname"><b>Patient name</b><input class="field" id="pname" value="Sample Patient (made up)" aria-label="Patient name"><span class="hint">Held in this browser only. Never saved.</span></div>
+        <div class="card"><table id="lines" aria-label="Estimate lines"></table></div>
+        <div><button class="btn" type="button" id="addbtn">+ Add service</button></div>
+        <div class="attn" id="attn"></div>
+      </div>
+      <div class="foot">
+        <div class="plan"><div class="lbl">Scheduling plan</div><div id="plan"></div></div>
+        <div class="total">
+          <div class="lbl" id="vlabel">Full treatment plan</div>
+          <div class="big" id="vtotal">$0.00</div>
+          <div class="seg" role="group" aria-label="Cost view">
+            <button type="button" data-view="weekly" aria-pressed="false">Weekly</button>
+            <button type="button" data-view="monthly" aria-pressed="false">Monthly</button>
+            <button type="button" data-view="plan" aria-pressed="true">Full plan</button>
+          </div>
+          <div class="small" id="vnote"></div>
+        </div>
+        <div class="actions">
+          <button class="btn light" type="button" id="printbtn">Print patient copy</button>
+          <button class="btn sky" type="button">New estimate (clear)</button>
+        </div>
+      </div>
+    </div>
+  </div></div>
+
+  <!-- 2. ADD A LINE -->
+  <div class="stage" id="p-add" role="tabpanel" aria-labelledby="t-add" hidden><div class="scroll">
+    <div class="board" style="width:100%;min-width:820px">
+      <div class="hdr"><small>Mental Health Center of America</small><h3>Treatment Plan Estimate</h3></div>
+      <div class="body" style="background:var(--stone);padding:28px">
+        <div class="modal" role="group" aria-label="Add service">
+          <h4>Add a service</h4>
+          <div class="steps">
+            <div><label for="svc">Service</label><select id="svc"><option>Individual Counseling</option></select></div>
+            <div><label for="prov">Provider (only those who offer it)</label><select id="prov"><option>Glenn Goodrich, LPC</option></select></div>
+          </div>
+          <div>
+            <span class="lbl2">How will this be paid?</span>
+            <div class="pay">
+              <button class="opt" type="button" id="o-cash" aria-pressed="false"><b>Cash pay</b>Private-pay price</button>
+              <button class="opt" type="button" id="o-ins" aria-pressed="true"><b>Insurance</b>Plans this provider is credentialed for</button>
+            </div>
+            <p class="hint" style="margin:6px 0 0">A provider who does not take cash or insurance shows that option greyed out. Example: Autumn Prak and Gentry Tays are cash only.</p>
+          </div>
+          <div id="planbox">
+            <span class="lbl2">Patient's plan</span>
+            <div class="plans" id="plans" role="radiogroup" aria-label="Plan"></div>
+          </div>
+          <div class="rate"><span>Rate per visit</span><b id="rate">$103.31</b><span class="hint" id="ratenote">Contracted rate for this provider's credential.</span></div>
+          <div>
+            <span class="lbl2">How often?</span>
+            <div class="seg" style="margin:0 0 10px" role="group" aria-label="Frequency mode">
+              <button type="button" id="m-week" aria-pressed="true">Per week × weeks</button>
+              <button type="button" id="m-total" aria-pressed="false">Total sessions</button>
+            </div>
+            <div class="freq" id="freq"></div>
+          </div>
+          <div class="lineout" id="lineout"></div>
+          <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap"><button class="btn sky" type="button">Cancel</button><button class="btn" type="button">Add to estimate</button></div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+
+  <!-- 3. PATIENT COPY -->
+  <div class="stage" id="p-paper" role="tabpanel" aria-labelledby="t-paper" hidden>
+    <div class="controls">
+      <label for="pmode"><b>What the patient copy shows:</b></label>
+      <select id="pmode" style="width:auto;border-color:var(--line);background:var(--tab);color:var(--fg)">
+        <option value="selected">Only the cost view chosen in the builder</option>
+        <option value="all">All three views (weekly, monthly, full plan)</option>
+      </select>
+      <span style="color:var(--muted)">Cost view in the builder: <b id="curview">Full plan</b></span>
+    </div>
+    <div class="scroll">
+      <div class="paper" id="paper" aria-label="Patient copy preview, US Letter">
+        <div class="brand">
+          <div class="mark">MENTAL HEALTH CENTER <span style="font-weight:400">of</span><b>AMERICA</b></div>
+          <div class="contact">info@mentalhealthcenter.com</div>
+        </div>
+        <div class="meta"><div><b>Patient</b> &nbsp;<span id="pp-name">Sample Patient</span></div><div><b>Date</b> &nbsp;October 3, 2026</div></div>
+        <table aria-label="Services"><thead><tr><th>Service</th><th>Provider</th><th>How often</th><th class="num">Per visit</th><th class="num" id="pp-th">Total</th></tr></thead><tbody id="pp-body"></tbody></table>
+        <div class="tot"><div class="l" id="pp-l">Estimated total</div><div class="v" id="pp-v">$0.00</div></div>
+        <div class="three" id="pp-three" hidden></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notes">
+    <section><h2>On the patient copy</h2><ul><li>Service, provider, how often, per visit, total, estimated total. Nothing else.</li><li>No CPT codes, add-on rows, plan or tier names, credentialing, warnings or buttons.</li><li>No disclaimer line (your call).</li><li>Rows never split across pages; the header repeats.</li></ul></section>
+    <section><h2>Admin-only</h2><ul><li>Status chips: ready, credentialing pending, blocked.</li><li>Blocked lines are left out of every total, and printing stays off until they are fixed or removed.</li><li>Out-of-network plans offer a switch to cash.</li></ul></section>
+    <section><h2>Assumptions to confirm</h2><ul><li>The wordmark is text until the logo file arrives.</li><li>Brand type is Gill Sans; this page shows Cabin where Gill Sans is missing.</li><li>Monthly = weekly × 52 ÷ 12. One-time services count only in the full plan.</li></ul></section>
+  </div>
+</div>
+
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var fmt = function (c) { var s = Math.floor(c / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ','); return '$' + s + '.' + String(c % 100).padStart(2, '0'); };
+  // Sample estimate (cents). status: ok | warn | bad
+  var LINES = [
+    { svc: 'Individual Counseling', prov: 'Glenn Goodrich, LPC', pay: 'Insurance · Aetna', freq: 'Weekly × 12 sessions', per: 10331, n: 12, span: 12, status: 'ok', chip: 'Ready' },
+    { svc: 'Medication Management', prov: 'Emily Lyon, PA', pay: 'Cash', freq: 'Monthly × 3 sessions', per: 17500, n: 3, span: 12, status: 'ok', chip: 'Ready' },
+    { svc: 'Couples Counseling', prov: 'Kimberley Dixon, LPC', pay: 'Cash', freq: 'Weekly × 8 sessions', per: 22500, n: 8, span: 8, status: 'ok', chip: 'Ready' },
+    { svc: 'ADHD Evaluation', prov: 'Jonathon Shasteen, PsyD', pay: 'Cash', freq: 'One time', per: 180000, n: 1, span: null, status: 'ok', chip: 'Ready' },
+    { svc: 'Individual Counseling', prov: 'Mirna Pacheco, LPC', pay: 'Insurance · Medicare', freq: 'Weekly × 6 sessions', per: null, n: 6, span: 6, status: 'bad', chip: 'Blocked: LPC + Medicare' }
+  ];
+  var view = 'plan';
+  var NAMES = { weekly: ['Per week', 'Estimated weekly cost'], monthly: ['Per month', 'Estimated monthly cost'], plan: ['Full treatment plan', 'Estimated total'] };
+  function calc() {
+    var full = 0, weekly = 0, once = 0, blocked = 0;
+    LINES.forEach(function (l) {
+      if (l.status === 'bad') { blocked++; return; }
+      var t = l.per * l.n; l.total = t; full += t;
+      if (l.n === 1) { once += t; l.weekly = null; } else { l.weekly = Math.round(t / l.span); weekly += l.weekly; }
+    });
+    return { full: full, weekly: weekly, monthly: Math.round(weekly * 52 / 12), once: once, blocked: blocked };
+  }
+  function lineVal(l, v) {
+    if (l.status === 'bad') return null;
+    if (v === 'plan') return l.total;
+    if (l.weekly === null) return null;
+    return v === 'weekly' ? l.weekly : Math.round(l.weekly * 52 / 12);
+  }
+  function render() {
+    var s = calc();
+    var tb = '<thead><tr><th>Service</th><th>Provider</th><th>Payment</th><th>How often</th><th class="num">Per visit</th><th class="num" id="th-v"></th><th>Status</th></tr></thead><tbody>';
+    LINES.forEach(function (l) {
+      var v = lineVal(l, view);
+      tb += '<tr class="' + (l.status === 'bad' ? 'blocked' : '') + '"><td>' + l.svc + '</td><td>' + l.prov + '</td><td>' + l.pay + '</td><td>' + l.freq + '</td><td class="num">' + (l.per === null ? '—' : fmt(l.per)) + '</td><td class="num">' + (v === null ? (l.status === 'bad' ? '—' : 'one time') : fmt(v)) + '</td><td><span class="chip ' + (l.status === 'bad' ? 'bad' : l.status === 'warn' ? 'warn' : 'ok') + '">' + l.chip + '</span></td></tr>';
+    });
+    $('lines').innerHTML = tb + '</tbody>';
+    $('th-v').textContent = view === 'plan' ? 'Line total' : (view === 'weekly' ? 'Per week' : 'Per month');
+    var tv = view === 'plan' ? s.full : (view === 'weekly' ? s.weekly : s.monthly);
+    $('vlabel').textContent = NAMES[view][0]; $('vtotal').textContent = fmt(tv);
+    $('vnote').textContent = view === 'plan' ? ('Includes ' + fmt(s.once) + ' of one-time services.') : 'Repeating services only; one-time services are not included.';
+    $('curview').textContent = view === 'plan' ? 'Full plan' : (view === 'weekly' ? 'Weekly' : 'Monthly');
+    var plan = '';
+    LINES.forEach(function (l) { if (l.status !== 'bad') plan += '<div class="row">' + l.prov.split(',')[0] + ' · ' + l.svc + ' · ' + l.freq.replace(' sessions', '') + '</div>'; });
+    $('plan').innerHTML = plan;
+    $('attn').textContent = s.blocked ? ('Attention: ' + s.blocked + ' line is blocked (LPC providers cannot bill Medicare). Blocked lines are left out of the totals and printing is off until it is removed or switched.') : '';
+    $('printbtn').disabled = s.blocked > 0;
+    document.querySelectorAll('.seg button[data-view]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.view === view)); });
+    renderPaper(s);
+  }
+  function renderPaper(s) {
+    var mode = $('pmode').value;
+    var rows = '';
+    LINES.forEach(function (l) {
+      if (l.status === 'bad') return;
+      var v = lineVal(l, mode === 'all' ? 'plan' : view);
+      rows += '<tr><td>' + l.svc + '</td><td>' + l.prov.split(',')[0] + '</td><td>' + l.freq + '</td><td class="num">' + fmt(l.per) + '</td><td class="num">' + (v === null ? 'one time' : fmt(v)) + '</td></tr>';
+    });
+    $('pp-body').innerHTML = rows;
+    var v = mode === 'all' ? 'plan' : view;
+    $('pp-th').textContent = v === 'plan' ? 'Total' : (v === 'weekly' ? 'Per week' : 'Per month');
+    $('pp-l').textContent = mode === 'all' ? NAMES.plan[1] : NAMES[view][1];
+    $('pp-v').textContent = fmt(mode === 'all' ? s.full : (view === 'plan' ? s.full : view === 'weekly' ? s.weekly : s.monthly));
+    var three = $('pp-three'); three.hidden = mode !== 'all';
+    three.innerHTML = '<div>Per week<b>' + fmt(s.weekly) + '</b></div><div>Per month<b>' + fmt(s.monthly) + '</b></div><div>Full plan<b>' + fmt(s.full) + '</b></div>';
+    $('pp-name').textContent = $('pname').value.replace(' (made up)', '') || '—';
+  }
+  // tabs
+  var panels = { builder: 'p-builder', add: 'p-add', paper: 'p-paper' };
+  function show(name) {
+    Object.keys(panels).forEach(function (k) { $(panels[k]).hidden = k !== name; $('t-' + k).setAttribute('aria-selected', String(k === name)); });
+  }
+  document.querySelectorAll('.tab').forEach(function (t) { t.addEventListener('click', function () { show(t.dataset.tab); }); });
+  $('printbtn').addEventListener('click', function () { show('paper'); });
+  $('addbtn').addEventListener('click', function () { show('add'); });
+  document.querySelectorAll('.seg button[data-view]').forEach(function (b) { b.addEventListener('click', function () { view = b.dataset.view; render(); }); });
+  $('pmode').addEventListener('change', render);
+  $('pname').addEventListener('input', function () { renderPaper(calc()); });
+
+  // add-a-line
+  var PLANS = [
+    { n: 'Aetna Commercial Plans', net: 'In network', cred: 'Credentialed', rate: 10331 },
+    { n: 'Aetna Advantage', net: 'In network', cred: 'Credentialed', rate: 10331 },
+    { n: 'Aetna Focus HMO', net: 'Out of network', cred: 'Credentialed', rate: null }
+  ];
+  var pay = 'ins', sel = 0, fm = 'week', per = 10331;
+  function renderAdd() {
+    $('o-cash').setAttribute('aria-pressed', String(pay === 'cash')); $('o-ins').setAttribute('aria-pressed', String(pay === 'ins'));
+    $('planbox').hidden = pay === 'cash';
+    var h = '';
+    PLANS.forEach(function (p, i) {
+      var chipc = p.net === 'Out of network' ? 'warn' : 'ok';
+      h += '<div class="plan-row ' + (i === sel ? 'sel' : '') + '" role="radio" aria-checked="' + (i === sel) + '" tabindex="0" data-i="' + i + '"><span>' + p.n + '</span><span><span class="chip ' + chipc + '">' + p.net + (p.net === 'Out of network' ? ': switch to cash' : '') + '</span></span></div>';
+    });
+    $('plans').innerHTML = h;
+    var p = PLANS[sel];
+    if (pay === 'cash') { per = 19500; $('rate').textContent = fmt(per); $('ratenote').textContent = 'Private-pay price for this provider.'; }
+    else if (p.rate === null) { per = null; $('rate').textContent = '—'; $('ratenote').textContent = 'No insurance price for an out-of-network plan. Switch this line to cash pay.'; }
+    else { per = p.rate; $('rate').textContent = fmt(per); $('ratenote').textContent = "Contracted rate for this provider's credential."; }
+    $('m-week').setAttribute('aria-pressed', String(fm === 'week')); $('m-total').setAttribute('aria-pressed', String(fm === 'total'));
+    $('freq').innerHTML = fm === 'week'
+      ? '<div><label class="lbl2" for="f1">Sessions per week</label><input id="f1" type="number" min="1" step="1" value="1"></div><div><label class="lbl2" for="f2">Number of weeks</label><input id="f2" type="number" min="1" step="1" value="12"></div><div></div>'
+      : '<div><label class="lbl2" for="f1">Total sessions</label><input id="f1" type="number" min="1" step="1" value="12"></div><div><label class="lbl2" for="f2">Spread over (weeks, optional)</label><input id="f2" type="number" min="1" step="1" value="12"></div><div></div>';
+    $('f1').addEventListener('input', out); $('f2').addEventListener('input', out); out();
+  }
+  function out() {
+    var a = Number($('f1').value), b = Number($('f2').value);
+    var n = fm === 'week' ? a * b : a, span = b > 0 ? b : null;
+    if (per === null || !(n >= 1)) { $('lineout').innerHTML = '<div><small>Line total</small><b>—</b></div>'; return; }
+    var t = per * n, html = '<div><small>Sessions</small><b>' + n + '</b></div><div><small>Line total</small><b>' + fmt(t) + '</b></div>';
+    if (n > 1 && span) { var w = Math.round(t / span); html += '<div><small>Per week</small><b>' + fmt(w) + '</b></div><div><small>Per month</small><b>' + fmt(Math.round(w * 52 / 12)) + '</b></div>'; }
+    $('lineout').innerHTML = html;
+  }
+  $('o-cash').addEventListener('click', function () { pay = 'cash'; renderAdd(); });
+  $('o-ins').addEventListener('click', function () { pay = 'ins'; renderAdd(); });
+  $('m-week').addEventListener('click', function () { fm = 'week'; renderAdd(); });
+  $('m-total').addEventListener('click', function () { fm = 'total'; renderAdd(); });
+  $('plans').addEventListener('click', function (e) { var r = e.target.closest('.plan-row'); if (r) { sel = Number(r.dataset.i); renderAdd(); } });
+  $('plans').addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { var r = e.target.closest('.plan-row'); if (r) { e.preventDefault(); sel = Number(r.dataset.i); renderAdd(); } } });
+  render(); renderAdd();
+})();
+</script>
