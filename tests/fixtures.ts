@@ -1,0 +1,65 @@
+import type { EngineData } from '../src/engine';
+
+/** Synthetic data only. Names, rates and plans are invented; no real patient or fee data. */
+export const data: EngineData = {
+  providers: [
+    { id: 'P1', name: 'Dr. Doctoral', credential: 'PsyD', status: 'Active', accepts: 'Both' },
+    { id: 'P2', name: 'Lee Counselor', credential: 'LPC', status: 'Active', accepts: 'Both' },
+    { id: 'P3', name: 'Cash Only', credential: 'LCSW', status: 'Active', accepts: 'Cash' },
+    { id: 'P4', name: 'Insurance Only', credential: 'PA', status: 'Active', accepts: 'Insurance' },
+    { id: 'P5', name: 'Override Rate', credential: 'PsyD', status: 'Active', accepts: 'Both', cashOverride: 300 },
+    { id: 'P6', name: 'Gone Away', credential: 'PsyD', status: 'Inactive', accepts: 'Both' },
+    { id: 'P7', name: 'Pending Cred', credential: 'PsyD', status: 'Active', accepts: 'Both' },
+  ],
+  services: [
+    { id: 'S1', perSession: true, name: 'Individual Counseling', active: true, cashPrice: 195, cashStatus: 'ok', allowedTiers: ['T2'] },
+    { id: 'S2', perSession: true, name: 'Individual Counseling', active: true, cashPrice: 250, cashStatus: 'ok', allowedTiers: ['T1'] },
+    { id: 'S3', perSession: false, name: 'ADHD Evaluation', active: true, cashPrice: 1800, cashStatus: 'ok' },
+    { id: 'S4', perSession: false, name: 'Treatment Consult', active: true, cashPrice: 0, cashStatus: 'zero' },
+    { id: 'S5', perSession: true, name: 'TMS Session', active: false, cashPrice: 200, cashStatus: 'ok' },
+    { id: 'S6', perSession: false, name: 'Cash Only Service', active: true, cashPrice: 95, cashStatus: 'ok' },
+  ],
+  providerServices: [
+    ...['P1', 'P5', 'P7'].flatMap((p) => [{ providerId: p, serviceId: 'S2' }, { providerId: p, serviceId: 'S3' }]),
+    { providerId: 'P1', serviceId: 'S4' },
+    { providerId: 'P1', serviceId: 'S5' },
+    { providerId: 'P1', serviceId: 'S6' },
+    { providerId: 'P2', serviceId: 'S1' },
+    { providerId: 'P3', serviceId: 'S1' },
+    { providerId: 'P4', serviceId: 'S1' },
+    { providerId: 'P4', serviceId: 'S3' },
+    { providerId: 'P6', serviceId: 'S2' },
+  ],
+  rates: [
+    { serviceId: 'S1', payer: 'Aetna', tier: 'T2', total: 103.31, status: 'OK' },
+    { serviceId: 'S2', payer: 'Aetna', tier: 'T1', total: 137.75, status: 'OK' },
+    { serviceId: 'S1', payer: 'Medicare', tier: 'T2', total: 90, status: 'OK' },
+    { serviceId: 'S2', payer: 'Medicare', tier: 'T1', total: 120, status: 'Payer quarantined' },
+    { serviceId: 'S3', payer: 'Aetna', tier: 'T1', total: 875.03, status: 'OK' },
+    { serviceId: 'S3', payer: 'Aetna', tier: 'T2', total: 0, status: 'No contracted rate - offer cash' },
+    { serviceId: 'S2', payer: 'Cigna', tier: 'T1', total: 0, status: 'Blank' },
+  ],
+  credentialing: [
+    { providerId: 'P1', payer: 'Aetna', status: 'Credentialed' },
+    { providerId: 'P1', payer: 'Medicare', status: 'Credentialed' },
+    { providerId: 'P2', payer: 'Aetna', status: 'Credentialed' },
+    { providerId: 'P2', payer: 'Medicare', status: 'Credentialed' },
+    { providerId: 'P4', payer: 'Aetna', status: 'Credentialed' },
+    { providerId: 'P5', payer: 'Aetna', status: 'Do not submit' },
+    { providerId: 'P7', payer: 'Aetna', status: 'Pending' },
+    { providerId: 'P1', payer: 'Cigna', status: 'Credentialed' },
+  ],
+  planMap: [
+    { subPlan: 'Aetna Commercial', parentPayer: 'Aetna', network: 'In' },
+    { subPlan: 'Medicare Part B', parentPayer: 'Medicare', network: 'In' },
+    { subPlan: 'Cigna Local', parentPayer: 'Cigna', network: 'In' },
+    { subPlan: 'Aetna Focus HMO', parentPayer: 'Aetna', network: 'Out' },
+    { subPlan: 'Mystery Plan', parentPayer: '', network: 'Needs review' },
+    { subPlan: 'Solidarity', parentPayer: '', network: 'In' },
+  ],
+  payers: [
+    { payer: 'Aetna', quarantined: false, stale: false },
+    { payer: 'Medicare', quarantined: true, stale: true },
+    { payer: 'Cigna', quarantined: false, stale: true },
+  ],
+};

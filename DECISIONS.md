@@ -60,3 +60,11 @@ Findings: Billing copy is 160×73 with 12 tabs (not ~111×51); "Non-covered" col
 - Built so far: variable collection "MHCA Brand" (8 brand colors + white, spacing, radius, font family) and frame **A. Admin Builder** (sample data, fictional patient). A cleanup fix (clear stray white fills, shorten Medicare chip) was applied but NOT visually re-checked.
 - Blocked: Figma MCP tool-call limit reached on the Starter plan. Not yet built: frame **B. Patient Copy** (US Letter) and the add-line modal (Cash/Insurance + plan picker).
 - Logo asset not located; the frames use a text wordmark placeholder.
+
+## Engine build (2026-10-03)
+
+- User asked to build the app engine while Figma is blocked, and to add weekly, monthly and full-plan cost views. Built `src/engine` (TypeScript, vitest, 47 tests, synthetic data only). No UI, no deployment, no Graph access yet; the "design approved before Phase 4" gate still applies to UI/print/deploy.
+- Cost view definitions: see `docs/engine.md` (weekly = recurring lines / their spans; monthly = weekly x 52/12; full plan = all lines; single-session lines are one-time).
+- **Cash override rule (assumption):** a provider's cash override applies only to services flagged per-session (counseling, couples, group, med management, etc.), never to evaluation bundles. Workbook `Services` gained column L "Per-session service" (seeded: single-visit services = Y).
+- LPC/LAC/LMFT + Medicare is blocked with no cash fallback offered (Medicare private-contract rules). Out-of-network, uncredentialed, quarantined and unusable-rate cases block the insurance line and offer a cash switch.
+- Open: does the patient copy print the selected view or all three views?

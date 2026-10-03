@@ -1,0 +1,15 @@
+{
+  "name": "mhca-estimator",
+  "version": "0.1.0",
+  "private": true,
+  "description": "MHCA Treatment Plan Estimator: pricing and rules engine (UI not yet built)",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

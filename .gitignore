@@ -1,3 +1,6 @@
 
 # Provider directory contains credentialing identifiers (NPI, Medicare IDs); lives in SharePoint, not git
 *.xlsx
+node_modules
+dist
+coverage
