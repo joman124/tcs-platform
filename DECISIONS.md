@@ -91,3 +91,9 @@ User supplied the active roster, services per provider, and cash prices.
 - **Palsdottir, Northup, Cabanillas, Maupin:** confirmed inactive.
 - Still open: last names/credentials for Stephanie, Denise, Amber; first names for the three postdocs; Medicare rate columns; logo; log storage; Entra admin consent; design path (Figma limit).
 - Engine now 61 tests; workbook has 126 provider-service links.
+
+## Names and log storage (2026-10-03)
+
+- New providers: **Stephanie Tavener, PA**; **Denish Gusich, PMHNP** (spelled "Denish" by the user; earlier "Denise", confirm); **Amber Tessette, PMHNP**. No credentialing on file, so cash only until recorded. Postdoc first names still needed.
+- **Log storage: SharePoint list in the MHCA tenant, de-identified only.** Spec in `docs/estimate-log-sharepoint.md`, column definitions in `docs/estimate-log-list.json`, row builder in `src/engine/log.ts` (64 tests total). Retention and viewers undecided. Needs an Entra app with Sites.Selected on one site (admin consent).
+- **Design path:** start with a Claude artifact; the user wants Figma eventually (Figma MCP limit resets monthly; frame A and variables already exist in the Figma file).

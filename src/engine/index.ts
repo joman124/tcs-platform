@@ -3,3 +3,4 @@ export * from './money';
 export * from './rates';
 export * from './rules';
 export * from './plan';
+export * from './log';
