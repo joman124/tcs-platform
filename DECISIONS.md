@@ -80,3 +80,14 @@ User supplied the active roster, services per provider, and cash prices.
 - **Assumptions to confirm:** "ADHD assessment" = ADHD Evaluation + ADHD Abbreviated; Shasteen's "ALL assessment" = all testing services (not Mental Health Assessment); "neuro" = Neurofeedback intake + 80-min + 30-min; "TMS pints" = TMS initial only, other TMS providers get all three TMS services (TMS is inactive in the estimator); "iop intake" linked to the IOP service (inactive); "med mgmt" = all three med-management services (not Psychiatric Intake); postdocs cash only.
 - **Not linked (need answers):** "functional psych appts" (Tara, Amber) has no Fee Schedule service; Gentry/Autumn "ADHD testing with a supervisor" (price unknown); Mental Health Assessment has no provider.
 - **Placeholders:** Stephanie, Denise and Amber need last names and credentials (cash only until then); postdocs need first names.
+
+## Roster follow-up answers (2026-10-03)
+
+- **Functional psych appts** (Tara, Amber): new placeholder service S31 "Functional Psychiatry Appointment", priced exactly like Psychiatric Intake (Fee Schedule row 41) until it has its own price.
+- **ADHD testing with a supervisor** (Gentry, Autumn): standard ADHD Evaluation, $1,800 cash.
+- **Mental Health Assessment** ($689): offered by the licensed doctors (Dr. John, Dr. Shasteen) and the three postdocs.
+- **Postdocs and insurance:** they bill under **Dr. John Mansoor** (his credentialing and PsyD-tier rates), **except Medicare and UHC** (UHC/Optum/UMR and UHC Advantage). Cash stays at $195. Workbook `Providers` columns L (bills under) and M (excluded payers); engine fields `billsUnder` and `excludedPayers`.
+- **Autumn and Gentry group therapy:** standard $80 (no override).
+- **Palsdottir, Northup, Cabanillas, Maupin:** confirmed inactive.
+- Still open: last names/credentials for Stephanie, Denise, Amber; first names for the three postdocs; Medicare rate columns; logo; log storage; Entra admin consent; design path (Figma limit).
+- Engine now 61 tests; workbook has 126 provider-service links.

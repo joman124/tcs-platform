@@ -97,13 +97,21 @@ export interface PlanOption {
   credentialing: 'Credentialed' | 'Pending';
 }
 
+/** The provider whose credentialing and tier apply to insurance: the supervisor if set, else the provider. */
+export function billingProvider(provider: Provider, data: EngineData): Provider | undefined {
+  return provider.billsUnder ? data.providers.find((p) => p.id === provider.billsUnder) : provider;
+}
+
 /** Plans the picker may show for a provider: parent payer credentialed (or pending) with the provider. */
 export function plansForProvider(provider: Provider, data: EngineData): PlanOption[] {
   if (provider.accepts === 'Cash') return [];
+  const biller = billingProvider(provider, data);
+  if (!biller) return [];
   const out: PlanOption[] = [];
   for (const plan of data.planMap) {
     if (!plan.parentPayer || plan.network === 'Needs review') continue;
-    const cred = data.credentialing.find((c) => c.providerId === provider.id && c.payer === plan.parentPayer);
+    if (provider.excludedPayers?.includes(plan.parentPayer)) continue;
+    const cred = data.credentialing.find((c) => c.providerId === biller.id && c.payer === plan.parentPayer);
     if (cred && (cred.status === 'Credentialed' || cred.status === 'Pending')) {
       out.push({ subPlan: plan.subPlan, payer: plan.parentPayer, network: plan.network, credentialing: cred.status });
     }
@@ -163,7 +171,12 @@ export function priceLine(input: LineInput, data: EngineData): LineResult {
 
   // ---- Insurance
   if (provider.accepts === 'Cash') return blocked([...issues, block('insurance-not-accepted', 'This provider does not accept insurance.')], { cashFallbackAvailable: true });
-  if (tier === null) {
+  const biller = billingProvider(provider, data);
+  if (!biller || biller.status !== 'Active') {
+    return blocked([...issues, block('supervisor-unavailable', 'The supervising provider this provider bills under is not available.')], { cashFallbackAvailable: true });
+  }
+  const billTier = tierOf(biller.credential);
+  if (billTier === null) {
     return blocked([...issues, block('unknown-credential', 'Provider credential is not on file yet, so insurance cannot be priced.')], { cashFallbackAvailable: true });
   }
   const plan = data.planMap.find((p) => p.subPlan === payment.subPlan);
@@ -179,6 +192,9 @@ export function priceLine(input: LineInput, data: EngineData): LineResult {
   }
   const payer = plan.parentPayer;
 
+  if (provider.excludedPayers?.includes(payer)) {
+    return blocked([...issues, block('payer-excluded', `${provider.name} does not see ${payer} patients.`)], { payer, cashFallbackAvailable: true });
+  }
   if (payer === 'Medicare' && !canBillMedicare(provider.credential)) {
     return blocked([...issues, block('lpc-medicare', `${provider.credential} providers cannot bill Medicare directly.`)], { payer });
   }
@@ -186,16 +202,16 @@ export function priceLine(input: LineInput, data: EngineData): LineResult {
   if (payerInfo?.quarantined) {
     return blocked([...issues, block('payer-quarantined', `${payer} rates are on hold until the Fee Schedule is confirmed.`)], { payer, cashFallbackAvailable: true });
   }
-  const cred = data.credentialing.find((c) => c.providerId === provider.id && c.payer === payer);
+  const cred = data.credentialing.find((c) => c.providerId === biller.id && c.payer === payer);
   if (!cred || (cred.status !== 'Credentialed' && cred.status !== 'Pending')) {
     return blocked(
-      [...issues, block('not-credentialed', `Provider is not credentialed with ${payer} (${cred?.status ?? 'no record'}).`)],
+      [...issues, block('not-credentialed', `${biller.id === provider.id ? 'Provider' : 'Supervising provider'} is not credentialed with ${payer} (${cred?.status ?? 'no record'}).`)],
       { payer, cashFallbackAvailable: true },
     );
   }
   if (cred.status === 'Pending') issues.push(warn('credentialing-pending', `Credentialing with ${payer} is still pending.`));
 
-  const rate = data.rates.find((r) => r.serviceId === service.id && r.payer === payer && r.tier === tier);
+  const rate = data.rates.find((r) => r.serviceId === service.id && r.payer === payer && r.tier === billTier);
   if (!rate) return blocked([...issues, block('no-rate', `No contracted rate exists for this service with ${payer}.`)], { payer, cashFallbackAvailable: true });
   if (rate.status !== 'OK') {
     return blocked([...issues, block('rate-unusable', `Contracted rate unusable: ${rate.status}.`)], { payer, cashFallbackAvailable: true });

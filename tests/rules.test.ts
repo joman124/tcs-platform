@@ -135,9 +135,41 @@ describe('provider+service cash overrides (roster pricing)', () => {
   });
 });
 
+describe('billing under a supervisor (postdocs)', () => {
+  const aetna = (over: Partial<LineInput> = {}) => line({ providerId: 'P8', payment: { type: 'insurance', subPlan: 'Aetna Commercial' }, ...over });
+  it('uses the supervisor credentialing and tier rates', () => {
+    const r = priceLine(aetna(), data);
+    expect(r.ok).toBe(true);
+    expect(r.perVisitCents).toBe(13775); // supervisor (PsyD, T1) Aetna rate
+  });
+  it('keeps cash at the postdoc override while insurance follows the supervisor', () => {
+    expect(priceLine(line({ providerId: 'P8' }), data).perVisitCents).toBe(19500);
+  });
+  it('blocks payers the postdoc cannot see, even if the supervisor can', () => {
+    const r = priceLine(aetna({ payment: { type: 'insurance', subPlan: 'Cigna Local' } }), data);
+    expect(codes(r)).toContain('payer-excluded');
+    expect(r.cashFallbackAvailable).toBe(true);
+    expect(codes(priceLine(aetna({ payment: { type: 'insurance', subPlan: 'Medicare Part B' } }), data))).toContain('payer-excluded');
+  });
+  it('blocks when the supervisor is inactive or missing', () => {
+    const inactive = { ...data, providers: data.providers.map((p) => (p.id === 'P1' ? { ...p, status: 'Inactive' as const } : p)) };
+    expect(codes(priceLine(aetna(), inactive))).toContain('supervisor-unavailable');
+    const missing = { ...data, providers: data.providers.map((p) => (p.id === 'P8' ? { ...p, billsUnder: 'GONE' } : p)) };
+    expect(codes(priceLine(aetna(), missing))).toContain('supervisor-unavailable');
+  });
+  it('blocks when the supervisor is not credentialed with the payer', () => {
+    const d = { ...data, credentialing: data.credentialing.filter((c) => !(c.providerId === 'P1' && c.payer === 'Aetna')) };
+    expect(codes(priceLine(aetna(), d))).toContain('not-credentialed');
+  });
+  it('the plan picker follows the supervisor minus excluded payers', () => {
+    const plans = plansForProvider(data.providers.find((p) => p.id === 'P8')!, data).map((p) => p.subPlan).sort();
+    expect(plans).toEqual(['Aetna Commercial', 'Aetna Focus HMO']);
+  });
+});
+
 describe('credential edge cases', () => {
-  it('postdoc, BA and MA cannot bill Medicare and are cash only', () => {
-    expect(codes(priceLine(line({ providerId: 'P8', payment: { type: 'insurance', subPlan: 'Aetna Commercial' } }), data))).toContain('insurance-not-accepted');
+  it('BA and MA providers are cash only', () => {
+    expect(codes(priceLine(line({ serviceId: 'S1', providerId: 'P9', payment: { type: 'insurance', subPlan: 'Aetna Commercial' } }), data))).toContain('insurance-not-accepted');
   });
   it('blank credential: cash works on tier-free services, insurance and tiered services are blocked', () => {
     expect(priceLine(line({ serviceId: 'S6', providerId: 'P10' }), data).perVisitCents).toBe(9500);

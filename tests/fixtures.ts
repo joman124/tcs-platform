@@ -10,7 +10,7 @@ export const data: EngineData = {
     { id: 'P5', name: 'Override Rate', credential: 'PsyD', status: 'Active', accepts: 'Both', cashOverride: 300 },
     { id: 'P6', name: 'Gone Away', credential: 'PsyD', status: 'Inactive', accepts: 'Both' },
     { id: 'P7', name: 'Pending Cred', credential: 'PsyD', status: 'Active', accepts: 'Both' },
-    { id: 'P8', name: 'Postdoc Resident', credential: 'Postdoc', status: 'Active', accepts: 'Cash' },
+    { id: 'P8', name: 'Postdoc Resident', credential: 'Postdoc', status: 'Active', accepts: 'Both', billsUnder: 'P1', excludedPayers: ['Medicare', 'Cigna'] },
     { id: 'P9', name: 'Trainee MA', credential: 'MA', status: 'Active', accepts: 'Cash' },
     { id: 'P10', name: 'Unknown Credential', credential: null, status: 'Active', accepts: 'Both' },
   ],

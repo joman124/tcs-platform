@@ -22,7 +22,7 @@ npm run typecheck
 1. Provider must be Active, service active, and linked in ProviderServices; the service's allowed tier must match the provider's credential tier.
 2. Frequency: weekly (`perWeek` x `weeks`) or total sessions (optional `spanWeeks`). Zero, negative or non-integer inputs block; fractional products round with a warning.
 3. Cash: provider must accept cash. Price = the provider+service override from ProviderServices, else the provider-wide override (per-session services only), else the Fee Schedule cash price (or the workbook's Services override, e.g. couples $225). $0, blank or unparsed prices block.
-4. Insurance: provider must accept insurance; plan must exist. Out-of-network blocks and offers the cash switch; unconfirmed network and plans with no Fee Schedule payer block (cash offered).
+4. Insurance: provider must accept insurance; plan must exist. A provider can bill under a supervisor (`billsUnder`): the supervisor must be Active and credentialed, and the supervisor's tier rates apply (e.g. postdocs under a PsyD). `excludedPayers` blocks payers that provider cannot see even if the supervisor can. Out-of-network blocks and offers the cash switch; unconfirmed network and plans with no Fee Schedule payer block (cash offered).
 5. LPC, LAC, LMFT, Postdoc, BA and MA + Medicare is blocked, and no cash fallback is offered. A provider with no credential on file cannot be priced for insurance or offered tiered services (counseling); cash works on tier-free services.
 6. A quarantined payer (Medicare for now) blocks, cash offered.
 7. Provider must be Credentialed with the parent payer; Pending is allowed with a warning; anything else blocks (cash offered).

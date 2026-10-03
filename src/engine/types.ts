@@ -18,6 +18,13 @@ export interface Provider {
   accepts: Accepts;
   /** Dollars. Blank (undefined) = use the Fee Schedule cash price. Applies only to per-session services. */
   cashOverride?: number;
+  /**
+   * Provider id whose credentialing and credential tier are used for insurance (e.g. a postdoc billing
+   * under a supervising psychologist). Cash lines still use this provider.
+   */
+  billsUnder?: string;
+  /** Fee Schedule payers this provider cannot see patients for, even if the supervisor can. */
+  excludedPayers?: string[];
 }
 
 export type CashStatus = 'ok' | 'zero' | 'blank' | 'text' | 'error';
