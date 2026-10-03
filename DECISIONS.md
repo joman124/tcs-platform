@@ -109,3 +109,15 @@ User supplied the active roster, services per provider, and cash prices.
 - **Logo:** deferred; text wordmark stays until supplied.
 - **Entra:** MHCA admin has granted consent. App credentials still need to be put in Vercel env vars (not in the repo).
 - **Medicare rate columns:** answer expected within ~48 hours. Medicare stays quarantined until then.
+
+## Phase 4/5 build (2026-10-03)
+
+- Design approved by the user (artifact v2). Vercel: the user's connected account; Entra secrets set by the user directly in Vercel; log retention 12 months, view access billing leadership only.
+- **App** built: Next.js 15, Microsoft Entra sign-in (single-tenant issuer plus `tid` check, 8-hour sessions), server-side Graph reads of the directory workbook (read-only, 5-minute cache, "Refresh data" button), estimate in browser memory only (no storage), print stylesheet for US Letter, afterprint "clear for next patient" prompt, New estimate confirm, 15-minute idle clear, de-identified log endpoint with strict server-side validation (known provider/service/payer IDs only).
+- **Contracted rates are computed by the app** from the workbook's `FeeRates` and `ServiceComponents` tabs (not read from the formula-driven `ContractedRates` tab), so the app does not depend on Excel recalculating. The real workbook was parsed locally and matched independent figures (ADHD Evaluation Aetna PsyD $875.03; Aetna individual PsyD $137.75 vs LPC $103.31). That test is local-only and never committed.
+- Workbook `Services` gained column N "Allowed tiers" (S04 = T2 master's-level counseling, S05 = T1 doctoral counseling). The updated workbook must be re-uploaded.
+- `FeeRates` is still a snapshot of the Fee Schedule; the automatic sync from the Fee Schedule is NOT built (refresh = regenerate the snapshot). Open.
+- Patient copy: weekly and monthly figures show a small "repeating visits" label only when a one-time service is on the estimate.
+- Demo mode (`DEMO_MODE=1`) uses invented data with a SAMPLE DATA watermark and turns itself off when real directory/Entra settings exist.
+- **Tests:** 79 unit tests plus 44 browser checks (cash-only, insurance-only, LPC + Medicare block, PsyD vs LPC rates, testing bundle, split service, three cost views, patient-copy contents, 30-line page break and Letter size, clear after print, reload/idle clear, two admins in separate browsers, no patient name in any request, server rejects name-bearing log rows, sign-in required outside demo mode). One bug found and fixed by the browser tests: a tall sticky footer covered the Add button with many lines.
+- Sample output: `docs/samples/sample-patient-copy.pdf` (demo data, watermarked).
