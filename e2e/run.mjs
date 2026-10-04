@@ -1,0 +1,205 @@
+// End-to-end checks against a production build in demo mode (invented data). Run: npm run build && npm run e2e
+import { spawn, execFileSync } from 'node:child_process';
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { chromium } from 'playwright';
+
+const PORT = 3111;
+const BASE = `http://localhost:${PORT}`;
+const CHROME = process.env.CHROME_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
+const results = [];
+const ok = (name, cond, detail = '') => { results.push({ name, pass: !!cond, detail }); console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${cond ? '' : '  ' + detail}`); };
+
+try { await fetch(BASE); console.error(`Port ${PORT} is already in use; stop the other server first.`); process.exit(2); } catch {}
+const server = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-p', String(PORT)], { env: { ...process.env, DEMO_MODE: '1', AUTH_SECRET: 'local-test-secret' }, stdio: 'ignore', detached: true });
+const stop = () => { try { process.kill(-server.pid, 'SIGTERM'); } catch {} };
+process.on('exit', stop);
+for (let i = 0; i < 60; i++) { try { const r = await fetch(BASE); if (r.ok) break; } catch {} await new Promise((r) => setTimeout(r, 500)); }
+
+const browser = await chromium.launch({ executablePath: CHROME, args: ['--no-sandbox'] });
+const newPage = async (ctxOpts = {}) => { const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 }, ...ctxOpts }); const page = await ctx.newPage(); return { ctx, page }; };
+
+/** Add a line through the dialog. pay: 'cash' or a plan name. */
+async function addLine(page, { service, provider, pay, mode = 'week', a = '1', b = '4' }) {
+  await page.click('#add-service');
+  await page.selectOption('#svc', { label: service });
+  await page.selectOption('#prov', { label: provider });
+  if (pay === 'cash') await page.click('#pay-cash');
+  else { await page.click('#pay-ins'); await page.click(`button[role=radio]:has-text("${pay}")`); }
+  if (await page.locator('#f1').count()) {
+    if (mode === 'total') { await page.click('button:has-text("Total sessions")'); }
+    await page.fill('#f1', a); await page.fill('#f2', b);
+  }
+}
+const confirmAdd = async (page) => { await page.click('#add-confirm'); await page.waitForSelector('#add-confirm', { state: 'detached' }); };
+const rowCount = (page) => page.locator('tr[data-testid=line]').count();
+const lineTotal = async (page, i) => (await page.locator('tr[data-testid=line]').nth(i).locator('td').nth(5).innerText()).trim();
+const printText = async (page) => { await page.emulateMedia({ media: 'print' }); const t = await page.locator('.print-only').innerText(); await page.emulateMedia({ media: 'screen' }); return t; };
+
+try {
+  // 1. Cash-only provider
+  { const { ctx, page } = await newPage(); await page.goto(BASE);
+    await page.click('#add-service'); await page.selectOption('#svc', { label: 'Individual Counseling' }); await page.selectOption('#prov', { label: 'Chris Cash, MA' });
+    ok('cash-only provider: insurance option disabled', await page.locator('#pay-ins').isDisabled());
+    await page.click('#pay-cash'); await page.fill('#f1', '1'); await page.fill('#f2', '4');
+    ok('cash-only provider: $95 x 4 weeks = $380.00', (await page.locator('#line-total').innerText()) === '$380.00');
+    await ctx.close(); }
+
+  // 2. Insurance-only provider
+  { const { ctx, page } = await newPage(); await page.goto(BASE);
+    await page.click('#add-service'); await page.selectOption('#svc', { label: 'Medication Management' }); await page.selectOption('#prov', { label: 'Pat Prescriber, PA' });
+    ok('insurance-only provider: cash option disabled', await page.locator('#pay-cash').isDisabled());
+    await page.click('#pay-ins'); await page.click('button[role=radio]:has-text("Aetna Commercial")');
+    ok('insurance-only provider: contracted rate shown ($83.65)', (await page.locator('#rate-value').innerText()) === '$83.65');
+    await ctx.close(); }
+
+  // 3. LPC + Medicare blocked
+  { const { ctx, page } = await newPage(); await page.goto(BASE);
+    await addLine(page, { service: 'Individual Counseling', provider: 'Casey Counselor, LPC', pay: 'Medicare Part B' });
+    ok('LPC + Medicare: blocked with message', (await page.locator('[role=alert]').first().innerText()).includes('cannot bill Medicare'));
+    ok('LPC + Medicare: cannot be added', await page.locator('#add-confirm').isDisabled());
+    await ctx.close(); }
+
+  // 3b. quarantined payer for a PsyD, out-of-network switch to cash
+  { const { ctx, page } = await newPage(); await page.goto(BASE);
+    await addLine(page, { service: 'Individual Counseling', provider: 'Dana Doctoral, PsyD', pay: 'Medicare Part B' });
+    ok('Medicare on hold for PsyD too', (await page.locator('[role=alert]').first().innerText()).includes('on hold'));
+    await page.click('button[role=radio]:has-text("Aetna Focus HMO")');
+    ok('out-of-network: offers switch to cash', await page.locator('button:has-text("Switch to cash pay")').isVisible());
+    await page.click('button:has-text("Switch to cash pay")');
+    ok('out-of-network: switch to cash prices at $250', (await page.locator('#rate-value').innerText()) === '$250.00');
+    await ctx.close(); }
+
+  // 4 + 5 + 6. PsyD vs LPC rates, testing bundle, one service split across two providers, cost views
+  { const { ctx, page } = await newPage(); await page.goto(BASE);
+    await page.fill('#patient', 'Test Patient');
+    await addLine(page, { service: 'Individual Counseling', provider: 'Dana Doctoral, PsyD', pay: 'Aetna Commercial Plans', a: '1', b: '12' }); await confirmAdd(page);
+    await addLine(page, { service: 'Individual Counseling', provider: 'Casey Counselor, LPC', pay: 'Aetna Commercial Plans', a: '1', b: '12' }); await confirmAdd(page);
+    ok('PsyD vs LPC same service + payer: different rates', (await lineTotal(page, 0)) === '$1,653.00' && (await lineTotal(page, 1)) === '$1,239.72', `${await lineTotal(page, 0)} / ${await lineTotal(page, 1)}`);
+    ok('one service split across two providers: two lines', (await rowCount(page)) === 2);
+    await addLine(page, { service: 'ADHD Evaluation', provider: 'Dana Doctoral, PsyD', pay: 'Aetna Commercial Plans', mode: 'total', a: '1', b: '' }); await confirmAdd(page);
+    ok('testing bundle total from rate rows ($875.03)', (await lineTotal(page, 2)) === '$875.03', await lineTotal(page, 2));
+    // cost views: weekly = 137.75 + 103.31 = 241.06 (ADHD is one time); monthly = 241.06*52/12 = 1044.60; full = 1653.00+1239.72+875.03
+    const view = async (v) => { await page.click(`button[data-view=${v}]`); return (await page.locator('#view-total').innerText()).trim(); };
+    ok('cost view: weekly', (await view('weekly')) === '$241.06');
+    ok('cost view: monthly', (await view('monthly')) === '$1,044.59' || (await view('monthly')) === '$1,044.60');
+    ok('cost view: full plan', (await view('plan')) === '$3,767.75');
+    const t = await printText(page);
+    ok('patient copy shows weekly, monthly and full plan', /Per week/.test(t) && /Per month/.test(t) && /Full treatment plan/.test(t));
+    ok('weekly/monthly are labeled as repeating visits when a one-time service is present', /repeating visits/.test(t));
+    ok('patient copy omits CPT, payer, status and admin words', !/Aetna|9\d{4}|Credential|Ready|Blocked|Medicare|PsyD|LPC|Insurance/.test(t), t);
+    ok('patient copy has contact line and no street address', t.includes('info@mentalhealthcenter.com') && !/\d{3,5} [A-Z][a-z]+ (St|Street|Ave|Avenue|Rd|Road|Blvd|Dr)\b/.test(t));
+    ok('patient copy has patient name and date', t.includes('Test Patient') && /20\d\d/.test(t));
+    await ctx.close(); }
+
+  // 7. Page break with 12 lines + sample PDF
+  { const { ctx, page } = await newPage(); await page.goto(BASE);
+    await page.fill('#patient', 'Sample Patient');
+    const specs = [
+      ['Individual Counseling', 'Dana Doctoral, PsyD', 'Aetna Commercial Plans'], ['Individual Counseling', 'Casey Counselor, LPC', 'Aetna Commercial Plans'],
+      ['Couples Counseling', 'Sam Second, LCSW', 'cash'], ['Group Counseling', 'Chris Cash, MA', 'cash'], ['Medication Management', 'Pat Prescriber, PA', 'Aetna Commercial Plans'],
+      ['ADHD Evaluation', 'Dana Doctoral, PsyD', 'cash'],
+    ];
+    for (let k = 0; k < 5; k++) for (const [service, provider, pay] of specs) {
+      if (service === 'Couples Counseling' && provider.startsWith('Sam')) { await addLine(page, { service, provider, pay: 'cash', a: '1', b: '8' }); }
+      else await addLine(page, { service, provider, pay, a: '1', b: '6' });
+      if (service === 'ADHD Evaluation') { await page.click('button:has-text("Total sessions")'); await page.fill('#f1', '1'); await page.fill('#f2', ''); }
+      await confirmAdd(page);
+    }
+    ok('30 lines added', (await rowCount(page)) === 30);
+    mkdirSync('docs/samples', { recursive: true });
+    const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
+    writeFileSync('docs/samples/sample-patient-copy.pdf', pdf);
+    const pages = Number(/Pages:\s+(\d+)/.exec(execFileSync('pdfinfo', ['docs/samples/sample-patient-copy.pdf']).toString())[1]);
+    ok('30-line estimate spans more than one US Letter page', pages >= 2, `pages=${pages}`);
+    const size = /Page size:\s+([\d.]+) x ([\d.]+)/.exec(execFileSync('pdfinfo', ['docs/samples/sample-patient-copy.pdf']).toString());
+    ok('PDF page size is US Letter (612 x 792 pt)', Math.abs(Number(size[1]) - 612) < 2 && Math.abs(Number(size[2]) - 792) < 2, size?.[0]);
+    // no row split across pages: every row that starts on a page (service name at the left) has its amounts on the same line of the same page
+    const bbox = execFileSync('pdftotext', ['-bbox', 'docs/samples/sample-patient-copy.pdf', '-']).toString();
+    let split = false, headers = 0, rowsSeen = 0;
+    for (const pg of bbox.split('<page ').slice(1)) {
+      const words = [...pg.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)"[^>]*>([^<]*)<\/word>/g)].map((m) => ({ x: +m[1], y: +m[2], t: m[3] }));
+      headers += words.filter((w) => w.t === 'visit' || w.t === 'Per').length ? 1 : 0;
+      for (const w of words.filter((w) => w.x < 120 && /^(Individual|Couples|Group|Medication|ADHD)$/.test(w.t))) {
+        rowsSeen++;
+        if (!words.some((v) => Math.abs(v.y - w.y) < 8 && v.x > 440 && v.t.startsWith('$'))) split = true;
+      }
+    }
+    ok('no table row is split across pages', !split && rowsSeen >= 30, `rows seen=${rowsSeen}`);
+    ok('table header repeats on every page', headers >= pages, `headers=${headers} pages=${pages}`);
+    ok('demo output carries a SAMPLE DATA watermark', (await printText(page)).includes('SAMPLE DATA'));
+    await ctx.close(); }
+
+  // 8. Clear flows: after print, New estimate, reload, idle
+  { const { ctx, page } = await newPage(); await page.goto(BASE);
+    await page.fill('#patient', 'Clear Me');
+    await addLine(page, { service: 'Individual Counseling', provider: 'Chris Cash, MA', pay: 'cash' }); await confirmAdd(page);
+    await page.evaluate(() => window.dispatchEvent(new Event('afterprint')));
+    await page.getByText('Printed. Clear for the next patient?').waitFor({ timeout: 3000 });
+    ok('after print: prompts to clear for next patient', await page.getByText('Printed. Clear for the next patient?').isVisible());
+    await page.click('.bar button:has-text("Clear")');
+    ok('after print: clearing empties name and lines', (await page.inputValue('#patient')) === '' && (await rowCount(page)) === 0);
+    await addLine(page, { service: 'Individual Counseling', provider: 'Chris Cash, MA', pay: 'cash' }); await confirmAdd(page);
+    await page.click('button:has-text("New estimate (clear)")');
+    ok('new estimate: asks for confirmation first', (await rowCount(page)) === 1 && (await page.getByText('Clear this estimate?').isVisible()));
+    await page.click('button:has-text("Yes, clear")');
+    ok('new estimate: clears after confirm', (await rowCount(page)) === 0);
+    await page.fill('#patient', 'Reload Me');
+    await addLine(page, { service: 'Individual Counseling', provider: 'Chris Cash, MA', pay: 'cash' }); await confirmAdd(page);
+    const storage = await page.evaluate(async () => ({ ls: localStorage.length, ss: sessionStorage.length, idb: (indexedDB.databases ? (await indexedDB.databases()).length : 0), cookie: document.cookie }));
+    ok('nothing stored in localStorage, sessionStorage, IndexedDB or cookies', storage.ls === 0 && storage.ss === 0 && storage.idb === 0 && storage.cookie === '', JSON.stringify(storage));
+    await page.reload();
+    ok('reload starts blank', (await page.inputValue('#patient')) === '' && (await rowCount(page)) === 0);
+    await ctx.close(); }
+  { const { ctx, page } = await newPage(); await page.clock.install(); await page.goto(BASE);
+    await page.fill('#patient', 'Idle Patient');
+    await addLine(page, { service: 'Individual Counseling', provider: 'Chris Cash, MA', pay: 'cash' }); await confirmAdd(page);
+    await page.clock.fastForward('16:00');
+    ok('idle for 15 minutes clears the estimate', (await rowCount(page)) === 0 && (await page.getByText('cleared after 15 minutes').isVisible()));
+    await ctx.close(); }
+
+  // 9. Two admins at once, and no patient name leaves the browser
+  { const A = await newPage(), B = await newPage();
+    const sent = [];
+    for (const { page } of [A, B]) page.on('request', (r) => { if (r.method() !== 'GET') sent.push(r.postData() ?? ''); });
+    await A.page.goto(BASE); await B.page.goto(BASE);
+    await A.page.fill('#patient', 'Alpha Patient'); await B.page.fill('#patient', 'Bravo Patient');
+    await addLine(A.page, { service: 'Individual Counseling', provider: 'Chris Cash, MA', pay: 'cash' }); await confirmAdd(A.page);
+    await addLine(B.page, { service: 'Medication Management', provider: 'Pat Prescriber, PA', pay: 'Aetna Commercial Plans' }); await confirmAdd(B.page);
+    ok('two admins at once stay independent', (await rowCount(A.page)) === 1 && (await rowCount(B.page)) === 1 && (await A.page.inputValue('#patient')) === 'Alpha Patient' && (await B.page.inputValue('#patient')) === 'Bravo Patient');
+    ok('no patient name in any request body', !sent.some((b) => /Alpha|Bravo/.test(b)));
+    const rejected = await A.page.evaluate(async () => (await fetch('/api/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: [{ estimateId: 'x', date: '2026-10-03', serviceId: 'S-IND-M', providerId: 'D03', paymentType: 'cash', payer: '', perVisitCents: 9500, sessions: 1, totalCents: 9500, estimateFullPlanCents: 9500, patientName: 'Alpha Patient' }] }) })).status);
+    ok('server rejects a log row that carries a patient name', rejected === 400, String(rejected));
+    const cleanRow = await A.page.evaluate(async () => (await fetch('/api/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: [{ estimateId: 'x', date: '2026-10-03', serviceId: 'S-IND-M', providerId: 'D03', paymentType: 'cash', payer: '', perVisitCents: 9500, sessions: 1, totalCents: 9500, estimateFullPlanCents: 9500 }] }) })).json());
+    ok('server accepts a clean de-identified row (logging off in demo)', cleanRow.logged === false);
+    await A.ctx.close(); await B.ctx.close(); }
+
+  // 10. Postdoc bills under supervisor; blocked payer
+  { const { ctx, page } = await newPage(); await page.goto(BASE);
+    await page.click('#add-service'); await page.selectOption('#svc', { label: 'Individual Counseling' }); await page.selectOption('#prov', { label: 'Dr. Resident, Postdoc' });
+    const plans = await page.locator('#pay-ins').click().then(() => page.locator('button[role=radio]').allInnerTexts());
+    ok('postdoc plan list excludes Medicare and UHC', !plans.some((t) => /Medicare|UMR/.test(t)) && plans.some((t) => /Aetna Commercial/.test(t)), plans.join('|'));
+    await page.click('button[role=radio]:has-text("Aetna Commercial")');
+    ok('postdoc insurance uses the supervisor PsyD rate ($137.75)', (await page.locator('#rate-value').innerText()) === '$137.75');
+    await page.click('#pay-cash');
+    ok('postdoc cash price is $195.00', (await page.locator('#rate-value').innerText()) === '$195.00');
+    await ctx.close(); }
+
+  // 11. Outside demo mode every page and API route requires an MHCA sign-in
+  { const port2 = PORT + 1;
+    const prod = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-p', String(port2)], { env: { ...process.env, DEMO_MODE: '', AUTH_SECRET: 'local-test-secret', AZURE_TENANT_ID: '00000000-0000-0000-0000-000000000000', AZURE_CLIENT_ID: 'x', AZURE_CLIENT_SECRET: 'x' }, stdio: 'ignore', detached: true });
+    for (let i = 0; i < 60; i++) { try { await fetch(`http://localhost:${port2}/api/auth/providers`); break; } catch {} await new Promise((r) => setTimeout(r, 500)); }
+    const page = await fetch(`http://localhost:${port2}/`, { redirect: 'manual' });
+    ok('signed-out visitors are redirected to Microsoft sign-in', page.status >= 300 && page.status < 400 && (page.headers.get('location') ?? '').includes('/api/auth/signin'), `${page.status} ${page.headers.get('location')}`);
+    const log = await fetch(`http://localhost:${port2}/api/log`, { method: 'POST', redirect: 'manual', headers: { 'Content-Type': 'application/json' }, body: '{"rows":[]}' });
+    ok('log endpoint is not reachable signed out', log.status !== 200 && log.status !== 400);
+    const refresh = await fetch(`http://localhost:${port2}/api/refresh`, { method: 'POST', redirect: 'manual' });
+    ok('refresh endpoint is not reachable signed out', refresh.status !== 200);
+    const providers = await (await fetch(`http://localhost:${port2}/api/auth/providers`)).json();
+    ok('only the Microsoft Entra provider is offered', Object.keys(providers).join() === 'microsoft-entra-id', Object.keys(providers).join());
+    try { process.kill(-prod.pid, 'SIGTERM'); } catch {} }
+} finally {
+  await browser.close(); stop();
+}
+const failed = results.filter((r) => !r.pass);
+console.log(`\n${results.length - failed.length}/${results.length} checks passed`);
+process.exit(failed.length ? 1 : 0);

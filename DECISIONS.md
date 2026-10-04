@@ -30,3 +30,101 @@
 - De-identified logging needs a store; no storage chosen. To decide before Phase 4 (options: SharePoint list in MHCA tenant vs. Vercel-hosted DB).
 - Brand guidelines location in SharePoint not yet identified; fallback is navy/teal/gold + Calibri with assumptions listed.
 - The Fee Schedule is never written to. No real patient data in fixtures, logs, or commits.
+
+## Phase 1 answers (2026-10-03)
+
+| # | Topic | Decision |
+|---|---|---|
+| 19 | Text in rate cells (DNB / N/A / OON / INN) | Treated as no contracted rate; estimator offers to fall back to cash price |
+| 20 | Suspicious cells (~25) | Quarantined: treated as unparsed/blocked until the source is corrected. List in `docs/phase1-fee-schedule-review.md` |
+| 21 | Medicare rate columns | User unsure. **Assumption:** Medicare is quarantined until Billing confirms which block is the contracted rate. LPC + Medicare stays blocked regardless |
+| 22 | Stale rate dates | Admin-only warning when a payer's rate header is over 12 months old |
+
+Findings: Billing copy is 160×73 with 12 tabs (not ~111×51); "Non-covered" column renamed "Non Contracted (Specialty Services)"; TMS now present in rows 56–62 but TMS was excluded in Round 2 (decision 6). The `$3.73` typo and 2034 date from the brief were not found in this copy.
+
+## Phase 2 build notes (2026-10-03)
+
+- Workbook `MHCA-Provider-Directory.xlsx` built locally (14 tabs). **Not committed** (`*.xlsx` gitignored): Credentialing raw text contains NPIs, Medicare IDs/PTANs. Intended home is the MHCA SharePoint site; upload pending the user's choice of folder.
+- `FeeRates` is a values snapshot of the Fee Schedule (Excel cannot live-link to another SharePoint workbook in the browser); `ContractedRates` is formula-driven from it. Refresh = app/Graph sync. Deviation from "(b) live-linked" in Phase 0 to be confirmed.
+- ContractedRates is keyed Service × Payer × Tier (not per provider); a provider's tier comes from `Providers`. Per-provider expansion left to the app.
+- Providers seeded from the Credentialing Dashboard: 18 current/onboarding, 9 previous or unclear. `Needs review`: Garay (no credentialing), Hoepfner (listed under Previous Staff but named in-network on Network tabs).
+- Credentialing statuses normalized by rule: Credentialed 154, Pending 58 (includes "Submitted"/"In process"), Not eligible 16 (includes "Denied"), Do not submit 11, Needs review 5. Oscar column treated as Credentialed (plan-coverage note kept verbatim).
+- Services proposed from the Fee Schedule (30). TMS, Treatment Consult ($0 cash), Testing Consultation, and IOP are marked inactive. Optional add-ons excluded by default.
+- Availability, ProviderServices, KPI, monthly minimums, and cash overrides left blank (no data invented).
+- Verification: LibreOffice is unavailable in this environment, so the full workbook was not recalculated. SUMIFS/COUNTIFS logic was checked with a Python formula engine (32/32 matches vs an independent calculation); the SUMPRODUCT array form used in ContractedRates is standard Excel but unverified until opened in Excel.
+
+## Phase 3 progress (2026-10-03)
+
+- Brand tokens read from `mhca_guidelines 2021.pdf` (CorporateDrive). Figma file: https://www.figma.com/design/nj9pwmiG0l4ME6UTU9l5n8 (team "John Mansoor's team", Starter plan, seat View).
+- Figma has no Gill Sans; **Cabin** (Gill Sans-inspired Google font) is the design stand-in. App font stack: Gill Sans, Gill Sans MT, Cabin, Calibri, sans-serif (assumption).
+- Built so far: variable collection "MHCA Brand" (8 brand colors + white, spacing, radius, font family) and frame **A. Admin Builder** (sample data, fictional patient). A cleanup fix (clear stray white fills, shorten Medicare chip) was applied but NOT visually re-checked.
+- Blocked: Figma MCP tool-call limit reached on the Starter plan. Not yet built: frame **B. Patient Copy** (US Letter) and the add-line modal (Cash/Insurance + plan picker).
+- Logo asset not located; the frames use a text wordmark placeholder.
+
+## Engine build (2026-10-03)
+
+- User asked to build the app engine while Figma is blocked, and to add weekly, monthly and full-plan cost views. Built `src/engine` (TypeScript, vitest, 47 tests, synthetic data only). No UI, no deployment, no Graph access yet; the "design approved before Phase 4" gate still applies to UI/print/deploy.
+- Cost view definitions: see `docs/engine.md` (weekly = recurring lines / their spans; monthly = weekly x 52/12; full plan = all lines; single-session lines are one-time).
+- **Cash override rule (assumption):** a provider's cash override applies only to services flagged per-session (counseling, couples, group, med management, etc.), never to evaluation bundles. Workbook `Services` gained column L "Per-session service" (seeded: single-visit services = Y).
+- LPC/LAC/LMFT + Medicare is blocked with no cash fallback offered (Medicare private-contract rules). Out-of-network, uncredentialed, quarantined and unusable-rate cases block the insurance line and offer a cash switch.
+- Open: does the patient copy print the selected view or all three views?
+
+## Roster and pricing update (2026-10-03)
+
+User supplied the active roster, services per provider, and cash prices.
+
+- **Cash prices:** individual counseling $195 master's-level (matches Fee Schedule); **licensed doctoral $250**; **postdoctoral residents (Dr. Lee, Dr. Nine, Dr. Arbuckle-Washington) $195**; **Autumn Prak (BA) and Gentry Tays (MA): cash only, $95 per 60-min individual session**. 60 minutes is always the assumption. **Couples $225** (Fee Schedule still says $195; workbook `Services!M` overrides, Billing should update the source).
+- **Mechanism:** new `ProviderServices` column E "Cash price override" (per provider + service), so $95 applies to Autumn/Gentry individual counseling only (group stays at the standard $80; confirm). Engine: provider+service override wins, then provider-wide override (per-session services only).
+- **New credentials:** Postdoc (tier T1, no Medicare, cash only assumed), BA and MA (tier T2, cash only). Engine allows a null credential (cash on tier-free services only).
+- **Roster applied:** 35 providers; 117 provider-service links. Active per the user's list: Dr. John (Mansoor), Dr. Shasteen, Dr. Lee, Dr. Nine, Dr. Arbuckle-Washington, John-Eli Garay, Tara (Iacono), Stephanie, Julianne (Haddad), Kimberley (Dixon), Gentry, Autumn, Gregg (Bagdade), Mike (Hanafin), Glenn (Goodrich, leaving soon), Mirna (Pacheco), Emily (Lyon), Alyssa (Bruns), Devon (Hoepfner), Nestazia (Khamis), Raul (Rivera), Denise, Amber. Resolves earlier open items: Garay and Hoepfner are Active. Not on the list, now **Inactive** (confirm): Palsdottir, Northup, Cabanillas, Maupin. Previous staff kept.
+- **Assumptions to confirm:** "ADHD assessment" = ADHD Evaluation + ADHD Abbreviated; Shasteen's "ALL assessment" = all testing services (not Mental Health Assessment); "neuro" = Neurofeedback intake + 80-min + 30-min; "TMS pints" = TMS initial only, other TMS providers get all three TMS services (TMS is inactive in the estimator); "iop intake" linked to the IOP service (inactive); "med mgmt" = all three med-management services (not Psychiatric Intake); postdocs cash only.
+- **Not linked (need answers):** "functional psych appts" (Tara, Amber) has no Fee Schedule service; Gentry/Autumn "ADHD testing with a supervisor" (price unknown); Mental Health Assessment has no provider.
+- **Placeholders:** Stephanie, Denise and Amber need last names and credentials (cash only until then); postdocs need first names.
+
+## Roster follow-up answers (2026-10-03)
+
+- **Functional psych appts** (Tara, Amber): new placeholder service S31 "Functional Psychiatry Appointment", priced exactly like Psychiatric Intake (Fee Schedule row 41) until it has its own price.
+- **ADHD testing with a supervisor** (Gentry, Autumn): standard ADHD Evaluation, $1,800 cash.
+- **Mental Health Assessment** ($689): offered by the licensed doctors (Dr. John, Dr. Shasteen) and the three postdocs.
+- **Postdocs and insurance:** they bill under **Dr. John Mansoor** (his credentialing and PsyD-tier rates), **except Medicare and UHC** (UHC/Optum/UMR and UHC Advantage). Cash stays at $195. Workbook `Providers` columns L (bills under) and M (excluded payers); engine fields `billsUnder` and `excludedPayers`.
+- **Autumn and Gentry group therapy:** standard $80 (no override).
+- **Palsdottir, Northup, Cabanillas, Maupin:** confirmed inactive.
+- Still open: last names/credentials for Stephanie, Denise, Amber; first names for the three postdocs; Medicare rate columns; logo; log storage; Entra admin consent; design path (Figma limit).
+- Engine now 61 tests; workbook has 126 provider-service links.
+
+## Names and log storage (2026-10-03)
+
+- New providers: **Stephanie Tavener, PA**; **Denish Gusich, PMHNP** (spelled "Denish" by the user; earlier "Denise", confirm); **Amber Tessette, PMHNP**. No credentialing on file, so cash only until recorded. Postdoc first names still needed.
+- **Log storage: SharePoint list in the MHCA tenant, de-identified only.** Spec in `docs/estimate-log-sharepoint.md`, column definitions in `docs/estimate-log-list.json`, row builder in `src/engine/log.ts` (64 tests total). Retention and viewers undecided. Needs an Entra app with Sites.Selected on one site (admin consent).
+- **Design path:** start with a Claude artifact; the user wants Figma eventually (Figma MCP limit resets monthly; frame A and variables already exist in the Figma file).
+
+## Design artifact (2026-10-03)
+
+- Interim design published as a private Claude artifact: https://claude.ai/artifact/MKgXSFPpzZ6CqhkhqzkqEi (source: `docs/design/estimator-design.html`). Three screens: admin builder, add-a-line, patient copy (US Letter). Includes the weekly / monthly / full-plan toggle. Figma remains the eventual design home (file nj9pwmiG0l4ME6UTU9l5n8, frame A built; frame B and the modal wait for the monthly limit to reset or a plan upgrade).
+- The artifact previews an open question: patient copy shows only the selected cost view, or all three. Awaiting the user's choice. Still no approval of the design (Phase 3 gate).
+
+## Decisions (2026-10-03, later)
+
+- **Patient copy shows all three views** (weekly, monthly, full plan) plus per-line totals. No "selected view only" option. Artifact v2 reflects this.
+- **Logo:** deferred; text wordmark stays until supplied.
+- **Entra:** MHCA admin has granted consent. App credentials still need to be put in Vercel env vars (not in the repo).
+- **Medicare rate columns:** answer expected within ~48 hours. Medicare stays quarantined until then.
+
+## Phase 4/5 build (2026-10-03)
+
+- Design approved by the user (artifact v2). Vercel: the user's connected account; Entra secrets set by the user directly in Vercel; log retention 12 months, view access billing leadership only.
+- **App** built: Next.js 15, Microsoft Entra sign-in (single-tenant issuer plus `tid` check, 8-hour sessions), server-side Graph reads of the directory workbook (read-only, 5-minute cache, "Refresh data" button), estimate in browser memory only (no storage), print stylesheet for US Letter, afterprint "clear for next patient" prompt, New estimate confirm, 15-minute idle clear, de-identified log endpoint with strict server-side validation (known provider/service/payer IDs only).
+- **Contracted rates are computed by the app** from the workbook's `FeeRates` and `ServiceComponents` tabs (not read from the formula-driven `ContractedRates` tab), so the app does not depend on Excel recalculating. The real workbook was parsed locally and matched independent figures (ADHD Evaluation Aetna PsyD $875.03; Aetna individual PsyD $137.75 vs LPC $103.31). That test is local-only and never committed.
+- Workbook `Services` gained column N "Allowed tiers" (S04 = T2 master's-level counseling, S05 = T1 doctoral counseling). The updated workbook must be re-uploaded.
+- `FeeRates` is still a snapshot of the Fee Schedule; the automatic sync from the Fee Schedule is NOT built (refresh = regenerate the snapshot). Open.
+- Patient copy: weekly and monthly figures show a small "repeating visits" label only when a one-time service is on the estimate.
+- Demo mode (`DEMO_MODE=1`) uses invented data with a SAMPLE DATA watermark and turns itself off when real directory/Entra settings exist.
+- **Tests:** 79 unit tests plus 44 browser checks (cash-only, insurance-only, LPC + Medicare block, PsyD vs LPC rates, testing bundle, split service, three cost views, patient-copy contents, 30-line page break and Letter size, clear after print, reload/idle clear, two admins in separate browsers, no patient name in any request, server rejects name-bearing log rows, sign-in required outside demo mode). One bug found and fixed by the browser tests: a tall sticky footer covered the Add button with many lines.
+- Sample output: `docs/samples/sample-patient-copy.pdf` (demo data, watermarked).
+
+## Vercel (2026-10-03)
+
+- Project `mhca-estimator` (team joman124's projects, id prj_KSedFjI4PAgnMJ6r568WZV7TJGff) linked to GitHub `joman124/tcs-platform`, production branch `main` (which does not contain the app yet). Vercel Authentication protects deployments (`all_except_custom_domains`).
+- `DEMO_MODE=1` is set for the **Preview** environment only (invented data, no sign-in, SAMPLE DATA watermark). Production has no env vars yet: it needs the Entra and directory settings from `.env.example`, set by the user in Vercel.
+- The first deployment was created from the feature branch but Vercel promoted it to the project's production alias (`mhca-estimator.vercel.app`) because the project had no production deployment. With no Entra settings it shows a configuration error and serves no data. **Nothing has been intentionally released to production; production release still needs the user's approval.**
+- Redirect URI to register in Entra for the stable domain: `https://mhca-estimator.vercel.app/api/auth/callback/microsoft-entra-id` (preview URLs change per deployment, so sign-in for real data should run on a stable domain).

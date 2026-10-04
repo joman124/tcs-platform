@@ -1,0 +1,12 @@
+
+# Provider directory contains credentialing identifiers (NPI, Medicare IDs); lives in SharePoint, not git
+*.xlsx
+node_modules
+dist
+coverage
+*.local.test.ts
+.next
+next-env.d.ts
+.env*.local
+.vercel
+tsconfig.tsbuildinfo
