@@ -251,7 +251,9 @@ try {
 
   // 14. The diagnostics page does not exist in demo mode (no sign-in there)
   { const r = await fetch(`${BASE}/diagnostics`, { redirect: 'manual' });
-    ok('diagnostics: not found in demo mode', r.status === 404, String(r.status)); }
+    ok('diagnostics: not found in demo mode', r.status === 404, String(r.status));
+    const ret = await fetch(`${BASE}/api/log-retention`, { redirect: 'manual', headers: { authorization: 'Bearer anything' } });
+    ok('log retention: does nothing in demo mode (404)', ret.status === 404, String(ret.status)); }
 
   // 11. Outside demo mode every page and API route requires an MHCA sign-in
   { const port2 = PORT + 1;
@@ -265,6 +267,8 @@ try {
     ok('refresh endpoint is not reachable signed out', refresh.status !== 200);
     const providers = await (await fetch(`http://localhost:${port2}/api/auth/providers`)).json();
     ok('only the Microsoft Entra provider is offered', Object.keys(providers).join() === 'microsoft-entra-id', Object.keys(providers).join());
+    const ret = await fetch(`http://localhost:${port2}/api/log-retention`, { redirect: 'manual' });
+    ok('log retention: off by default (404, no sign-in redirect for the cron route)', ret.status === 404, String(ret.status));
     const diag = await fetch(`http://localhost:${port2}/diagnostics`, { redirect: 'manual' });
     ok('diagnostics: signed-out visitors are redirected to sign-in', diag.status >= 300 && diag.status < 400 && (diag.headers.get('location') ?? '').includes('/api/auth/signin'), `${diag.status} ${diag.headers.get('location')}`);
     // Signed in (a session minted with this server's test secret). No directory IDs are set, so nothing goes to the network.
