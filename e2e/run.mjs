@@ -297,6 +297,20 @@ try {
     ok('diagnostics: signed in, lists settings by name and which are missing', signedIn.status === 200 && html.includes('AZURE_CLIENT_SECRET') && html.includes('DIRECTORY_ITEM_ID') && /Missing/.test(html) && /Present/.test(html), String(signedIn.status));
     ok('diagnostics: never shows a setting value', !html.includes('secret-value-for-e2e') && !html.includes('local-test-secret') && !html.includes('client-id-for-e2e'));
     try { process.kill(-prod.pid, 'SIGTERM'); } catch {} }
+
+  // 16. A deployment with no settings at all (production before setup): a plain "not set up" page, never a 500
+  { const port3 = PORT + 2;
+    const bare = { ...process.env, DEMO_MODE: '' };
+    for (const k of ['AUTH_SECRET', 'AZURE_TENANT_ID', 'AZURE_CLIENT_ID', 'AZURE_CLIENT_SECRET', 'DIRECTORY_DRIVE_ID', 'DIRECTORY_ITEM_ID', 'LOG_SITE_ID', 'LOG_LIST_ID']) delete bare[k];
+    const unset = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-p', String(port3)], { env: bare, stdio: 'ignore', detached: true });
+    try {
+      for (let i = 0; i < 60; i++) { try { await fetch(`http://localhost:${port3}/`); break; } catch {} await new Promise((r) => setTimeout(r, 500)); }
+      const codes = {};
+      for (const p of ['/', '/diagnostics', '/api/auth/providers', '/api/auth/signin', '/api/log', '/api/refresh']) codes[p] = (await fetch(`http://localhost:${port3}${p}`, { redirect: 'manual', method: p === '/api/log' || p === '/api/refresh' ? 'POST' : 'GET' })).status;
+      ok('no settings: every page and API answers 503, none 500', Object.values(codes).every((c) => c === 503), JSON.stringify(codes));
+      const page = await (await fetch(`http://localhost:${port3}/`)).text();
+      ok('no settings: the page says setup is unfinished and names no setting', page.includes('Estimator is not set up yet') && !/AUTH_SECRET|AZURE_|DIRECTORY_/.test(page));
+    } finally { try { process.kill(-unset.pid, 'SIGTERM'); } catch {} } }
 } finally {
   await browser.close(); stop();
 }
