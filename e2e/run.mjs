@@ -249,6 +249,34 @@ try {
     ok('stale provider: choosing a new provider fixes the line and printing turns on', (await page.locator('tr.blocked').count()) === 0 && (await lineTotal(page, 1)) === '$1,800.00' && !(await page.locator('#print').isDisabled()), await lineTotal(page, 1));
     await ctx.close(); }
 
+  // 15. Dialog accessibility: focus in on open, trapped while open, Escape closes, focus back to the trigger
+  { const { ctx, page } = await newPage(); await page.goto(BASE);
+    const active = () => page.evaluate(() => { const a = document.activeElement; return { id: a?.id ?? '', label: a?.getAttribute('aria-label') ?? '', text: (a?.textContent ?? '').trim().slice(0, 30), inDialog: !!a?.closest('[role=dialog]') }; });
+    await page.focus('#add-service'); await page.keyboard.press('Enter');
+    await page.waitForSelector('[role=dialog][aria-label="Add service"]');
+    ok('a11y: opening Add service moves focus to the first field', (await active()).id === 'svc', JSON.stringify(await active()));
+    let trapped = true;
+    for (let i = 0; i < 8; i++) { await page.keyboard.press('Tab'); if (!(await active()).inDialog) trapped = false; }
+    for (let i = 0; i < 8; i++) { await page.keyboard.press('Shift+Tab'); if (!(await active()).inDialog) trapped = false; }
+    ok('a11y: Tab and Shift+Tab stay inside the dialog', trapped);
+    await page.focus('#svc'); await page.keyboard.press('Shift+Tab');
+    ok('a11y: Shift+Tab from the first control wraps to the last enabled one (Cancel; Add is disabled until priced)', (await active()).inDialog && (await active()).text === 'Cancel', JSON.stringify(await active()));
+    await page.keyboard.press('Escape');
+    ok('a11y: Escape closes and focus returns to "+ Add service"', (await page.locator('[role=dialog]').count()) === 0 && (await active()).id === 'add-service', JSON.stringify(await active()));
+    await addLine(page, { service: 'Individual Counseling', provider: 'Chris Cash, MA', pay: 'cash' }); await confirmAdd(page);
+    await page.locator('button[aria-label="Edit Individual Counseling"]').click();
+    ok('a11y: opening Edit moves focus into the dialog', (await active()).inDialog && (await active()).id === 'svc');
+    await page.fill('#f2', '6'); await page.click('#save-confirm');
+    ok('a11y: after Save, focus returns to the row\'s Edit button', (await active()).label === 'Edit Individual Counseling', JSON.stringify(await active()));
+    await page.click('button:has-text("Preview patient copy")');
+    ok('a11y: opening the preview moves focus into it', (await active()).inDialog);
+    let pTrapped = true;
+    for (let i = 0; i < 4; i++) { await page.keyboard.press('Tab'); if (!(await active()).inDialog) pTrapped = false; }
+    ok('a11y: focus is trapped in the preview', pTrapped);
+    await page.keyboard.press('Escape');
+    ok('a11y: Escape closes the preview and focus returns to its button', (await page.locator('[role=dialog]').count()) === 0 && (await active()).text === 'Preview patient copy', JSON.stringify(await active()));
+    await ctx.close(); }
+
   // 14. The diagnostics page does not exist in demo mode (no sign-in there)
   { const r = await fetch(`${BASE}/diagnostics`, { redirect: 'manual' });
     ok('diagnostics: not found in demo mode', r.status === 404, String(r.status));

@@ -157,3 +157,6 @@ User supplied the active roster, services per provider, and cash prices.
 
 ### Log retention (built, off)
 - Pruning of log rows older than 12 months exists (`src/data/retention.ts`, `GET /api/log-retention`) but is off unless `LOG_RETENTION_ENABLED=1`, does nothing in demo mode, and requires Vercel Cron's `CRON_SECRET` bearer token. No cron schedule is configured; turning it on is the user's call (`docs/estimate-log-sharepoint.md`).
+
+### Dialog accessibility
+- The add/edit dialog and the patient-copy preview share a `Modal` shell (`components/Modal.tsx`): focus moves to the first control on open, Tab and Shift+Tab stay inside, Escape closes, and focus returns to the button that opened it.

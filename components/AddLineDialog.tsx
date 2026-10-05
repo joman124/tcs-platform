@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { fmt } from './format';
 import { displayName } from './format';
 import { EMPTY_FORM, formFromLine, type FormField, type NewLine, type PayType } from './lineForm';
+import { Modal } from './Modal';
 import {
   plansForProvider,
   priceLine,
@@ -69,15 +70,6 @@ export function AddLineDialog({ data, initial, onSave, onClose }: { data: Engine
   const notes = (result?.issues ?? probe?.issues ?? []).filter((i) => i.severity !== 'block');
   const canSwitchCash = probe && !probe.ok && probe.cashFallbackAvailable && cashOk && payType === 'insurance';
 
-  // Escape closes without saving, like Cancel.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [onClose]);
-
   function pickService(v: string) {
     setServiceName(v);
     setProviderId('');
@@ -91,7 +83,7 @@ export function AddLineDialog({ data, initial, onSave, onClose }: { data: Engine
   }
 
   return (
-    <div className="overlay" role="dialog" aria-modal="true" aria-label={editing ? 'Edit service' : 'Add service'}>
+    <Modal label={editing ? 'Edit service' : 'Add service'} onClose={onClose}>
       <div className="modal">
         <h2>{editing ? 'Edit service' : 'Add a service'}</h2>
         <div className="steps">
@@ -235,6 +227,6 @@ export function AddLineDialog({ data, initial, onSave, onClose }: { data: Engine
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { AddLineDialog, type NewLine } from './AddLineDialog';
+import { Modal } from './Modal';
 import { PrintSheet, type PrintLine } from './PrintSheet';
 import { displayName, fmt, freqText, todayISO } from './format';
 import {
@@ -342,7 +343,7 @@ export function Estimator({
         {adding && <AddLineDialog data={data} onSave={addLine} onClose={() => setAdding(false)} />}
         {editing && <AddLineDialog key={editing.id} data={data} initial={editing} onSave={(n) => saveEdit(editing.id, n)} onClose={() => setEditing(null)} />}
         {preview && (
-          <div className="overlay" role="dialog" aria-modal="true" aria-label="Patient copy preview">
+          <Modal label="Patient copy preview" onClose={() => setPreview(false)}>
             <div className="preview">
               <div className="preview-bar">
                 <button type="button" className="btn" onClick={doPrint} disabled={!canPrint}>
@@ -357,7 +358,7 @@ export function Estimator({
                 <PrintSheet patientName={patientName} dateText={new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} lines={printLines} summary={summary} demo={demo} />
               </div>
             </div>
-          </div>
+          </Modal>
         )}
       </div>
 
