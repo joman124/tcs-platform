@@ -37,6 +37,9 @@ The estimator is **built and tested on demo data, but not yet connected to real 
 ## 3. What still needs doing
 
 ### Needs the user (in this order)
+
+Step-by-step guide with every known ID filled in: **[`docs/SETUP-CHECKLIST.md`](SETUP-CHECKLIST.md)** (fixes issue 9 below: no placeholder-only instructions).
+
 1. **Decide where the workbook and log list live.** Recommended: a **small dedicated SharePoint site** holding only the workbook and the log list. The CorporateDrive site contains files with patient names (caseload and candidate lists), and the app's site-level access grant would cover all of it. The user has saved copies at:
    - `CorporateDrive / Shared Documents / Admin / Claude / TCS-creator` (not yet found by search, may need time to index);
    - an earlier copy in their personal OneDrive (test only). Its IDs, found by search: drive `b!nlQsWChhb0u7Okr2aJHS7dpHN_y5RrBEqk_XYLQLvh32pBsOT1piS7JST3Bi-s2-`, item `01QUYAHRNQ2ZGYGXMELRBYJ5M45GSKWVBU`.
