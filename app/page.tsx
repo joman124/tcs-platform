@@ -1,8 +1,6 @@
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { auth, signOut } from '@/auth';
 import { Estimator } from '@/components/Estimator';
-import { demoScenario } from '@/src/data/demo';
 import { isDemo, loadData } from '@/src/data/load';
 import { logConfigured } from '@/src/data/log';
 
@@ -18,15 +16,13 @@ export default async function Page() {
   }
   try {
     const loaded = await loadData();
-    // Demo only: browser tests can swap in an invented "after refresh" directory. Real data is never altered.
-    const data = demo ? demoScenario((await cookies()).get('demo-scenario')?.value) : loaded.data;
     async function signOutAction() {
       'use server';
       await signOut({ redirectTo: '/' });
     }
     return (
       <Estimator
-        data={data}
+        data={loaded.data}
         source={loaded.source}
         loadedAt={loaded.loadedAt}
         userName={userName}

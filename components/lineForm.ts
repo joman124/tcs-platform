@@ -33,8 +33,9 @@ export interface PrefilledForm {
 
 /**
  * Dialog state for editing an existing line. Each saved choice is kept only if the dialog would still offer it
- * with the current directory data (e.g. after "Refresh data"). The first invalid choice and everything that depends
- * on it are left empty with a note: a value is never silently substituted. Frequency is always kept.
+ * with the current directory data (a safeguard: "Refresh data" wipes the estimate, so lines normally stay valid).
+ * The first invalid choice and everything that depends on it are left empty with a note: a value is never silently
+ * substituted. Frequency is always kept.
  */
 export function formFromLine(line: NewLine, data: EngineData): PrefilledForm {
   const f = line.input.frequency;

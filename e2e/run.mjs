@@ -231,26 +231,13 @@ try {
     ok('edit: Remove still works', (await rowCount(page)) === 2 && !(await page.locator('table[aria-label="Estimate lines"]').innerText()).includes('Group Counseling'));
     await ctx.close(); }
 
-  // 13. Lines that go stale after "Refresh data" are fixed by editing them
+  // 13. "Refresh data" reloads the directory and wipes the estimate (user decision 2026-10-05)
   { const { ctx, page } = await newPage(); await page.goto(BASE);
-    await page.fill('#patient', 'Stale Patient');
-    await addLine(page, { service: 'Individual Counseling', provider: 'Casey Counselor, LPC', pay: 'Aetna Commercial Plans', a: '1', b: '4' }); await confirmAdd(page);
-    await addLine(page, { service: 'Couples Counseling', provider: 'Sam Second, LCSW', pay: 'cash', a: '1', b: '8' }); await confirmAdd(page);
-    await ctx.addCookies([{ name: 'demo-scenario', value: 'after-refresh', url: BASE }]);
-    await page.click('button:has-text("Refresh data")');
-    await page.locator('tr.blocked').nth(1).waitFor({ timeout: 10000 });
-    ok('refresh data keeps the estimate and re-prices it', (await rowCount(page)) === 2 && (await page.inputValue('#patient')) === 'Stale Patient' && (await page.locator('tr.blocked').count()) === 2);
-    ok('blocked lines: printing is off and the message mentions editing', (await page.locator('#print').isDisabled()) && (await page.locator('.actions').innerText()).includes('Edit or remove blocked lines first.') && (await page.locator('p.attn[role=alert]').innerText()).includes('edited or removed'));
-    await editRow(page, 0);
-    ok('stale plan: opens with the plan empty and a note to choose it again', (await page.getAttribute('#pay-ins', 'aria-pressed')) === 'true' && (await page.locator('button[role=radio][aria-checked=true]').count()) === 0 && (await page.locator('[data-testid=stale-plan]').innerText()).includes('Aetna Commercial Plans'));
-    await page.click('#pay-cash');
-    ok('stale plan: the note goes once payment is chosen again', (await page.locator('[data-testid=stale-plan]').count()) === 0 && (await page.inputValue('#f2')) === '4');
-    await saveEdit(page);
-    ok('blocked insurance line is fixed by editing it to cash ($195 x 4 = $780.00)', !(await row(page, 0).getAttribute('class')).includes('blocked') && (await lineTotal(page, 0)) === '$780.00' && (await rowText(page, 0)).includes('Cash'), await rowText(page, 0));
-    await editRow(page, 1);
-    ok('stale provider: opens with the provider empty and a note, nothing substituted', (await page.inputValue('#prov')) === '' && (await page.locator('[data-testid=stale-provider]').innerText()).includes('Sam Second') && (await page.locator('#save-confirm').isDisabled()));
-    await page.selectOption('#prov', { label: 'Casey Counselor, LPC' }); await page.click('#pay-cash'); await saveEdit(page);
-    ok('stale provider: choosing a new provider fixes the line and printing turns on', (await page.locator('tr.blocked').count()) === 0 && (await lineTotal(page, 1)) === '$1,800.00' && !(await page.locator('#print').isDisabled()), await lineTotal(page, 1));
+    await page.fill('#patient', 'Refresh Patient');
+    await addLine(page, { service: 'Individual Counseling', provider: 'Chris Cash, MA', pay: 'cash' }); await confirmAdd(page);
+    await Promise.all([page.waitForEvent('load'), page.click('button:has-text("Refresh data")')]);
+    await page.waitForSelector('#patient');
+    ok('refresh data wipes the estimate (name and lines)', (await page.inputValue('#patient')) === '' && (await rowCount(page)) === 0);
     await ctx.close(); }
 
   // 15. Dialog accessibility: focus in on open, trapped while open, Escape closes, focus back to the trigger

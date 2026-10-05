@@ -62,3 +62,7 @@ Baseline before any change: `npm test` 79/79, `npm run typecheck` clean, `npm ru
 | Unit (`npm test`) | 79 | 165 |
 | Browser (`npm run e2e`) | 44 | 78 |
 | Typecheck | clean | clean |
+
+## Morning follow-up (2026-10-05, after PR #5 was merged)
+
+The user answered the questions (`DECISIONS.md` #23–28): refresh wipes the estimate (overnight change reverted, demo scenario removed); renumber the workbook's Fee Schedule rows by −3 (Excel steps added to `docs/SETUP-CHECKLIST.md` §3 step 2; the diff now says whether an offset means "not renumbered yet"); log deletion stays off; the demo amounts stay; the user approves PRs and releases; the Next 16 upgrade is planned separately (`docs/next16-upgrade-plan.md`). The workbook itself is not in the repo, so the renumbering is the user's step. Tests after the follow-up: 163 unit, 72 browser.

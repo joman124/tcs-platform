@@ -135,8 +135,8 @@ User supplied the active roster, services per provider, and cash prices.
 - Each estimate row has **Edit** next to Remove. Edit reuses the add-a-line dialog in edit mode ("Edit service", "Save changes"), prefilled from the line; Save replaces the line in place (same position), Cancel or Escape leaves it untouched. Changing the service or provider while editing still clears the fields that depend on them.
 - A saved choice the current data no longer offers (service inactive, provider gone or no longer offering the service, payment type no longer accepted, plan no longer listed) opens **empty with a note** to choose it again. Nothing is silently substituted. A choice that is still offered but blocked (e.g. an out-of-network plan) stays selected so the admin sees the reason and can switch.
 - Blocked lines are editable; the admin messages now say "edit or remove".
-- **"Refresh data" now keeps the estimate** (`router.refresh()` instead of a full page reload) and re-prices every line against the new data, so lines that became invalid show as blocked and can be fixed by editing. Before, refresh reloaded the page, which silently discarded the estimate. The estimate is still memory-only. Re-pricing after a refresh also counts as "not yet logged". (Assumption, reversible; listed in the morning questions.)
-- Demo mode has an invented "after refresh" scenario (a provider made inactive, a credentialing row dropped) that the browser tests select with a `demo-scenario` cookie. The app never sets that cookie, and it is ignored outside demo mode.
+- **"Refresh data" now keeps the estimate** (`router.refresh()` instead of a full page reload) and re-prices every line against the new data, so lines that became invalid show as blocked and can be fixed by editing. Before, refresh reloaded the page, which silently discarded the estimate. The estimate is still memory-only. Re-pricing after a refresh also counts as "not yet logged". (Assumption, reversible; listed in the morning questions.) **Reverted 2026-10-05 by the user: see below.**
+- Demo mode has an invented "after refresh" scenario (a provider made inactive, a credentialing row dropped) that the browser tests select with a `demo-scenario` cookie. The app never sets that cookie, and it is ignored outside demo mode. **Removed 2026-10-05** along with the kept-estimate refresh.
 
 ### Release safety
 - `vercel.json` sets `git.deploymentEnabled.main = false`, so a merge or push to `main` no longer creates an automatic production deployment. It takes effect only once this file is on `main`. Feature-branch previews are unaffected. A release then needs a deliberate deployment (Vercel dashboard "Redeploy"/"Promote", or `vercel --prod`) after the user approves it. Vercel project settings were not changed.
@@ -152,7 +152,7 @@ User supplied the active roster, services per provider, and cash prices.
 
 ### Fee Schedule sync (engine and dry run only)
 - `src/sync/feeSchedule.ts` turns the "Fee Schedule" tab into `FeeRates` and `CashPrices` rows plus a review report; `scripts/fee-schedule-diff.ts` prints a dry-run diff against the current `FeeRates` tab. Nothing writes. Details: `docs/fee-schedule-sync.md`.
-- **Row numbering (finding):** the live sheet's data starts at row 4, not row 7. Phase 1's row numbers (and so the current workbook's visit and cash-price rows) are 3 higher than the sheet. The sync numbers rows from the sheet; the diff detects the offset and warns. Renumbering is a user decision before any write.
+- **Row numbering (finding):** the live sheet's data starts at row 4, not row 7. Phase 1's row numbers (and so the current workbook's visit and cash-price rows) are 3 higher than the sheet. The sync numbers rows from the sheet; the diff detects the offset and warns. **Decided 2026-10-05: renumber the workbook by −3** (see below).
 - Assumptions: parents with no code or a non-CPT code have no rate of their own and anchor their `+` rows (a code-less row only when `+` rows follow); an unlabelled CPT row under a visit belongs to it; "(optional)" add-ons are kept in `FeeRates` with the optional flag (the engine already leaves them out by default) rather than dropped; add-on rows with notes such as "(on hold)" are included and listed; numbers stored as text are unusable by default; `$0` is unusable; the quarantine median is per CPT, payer and tier (this reproduces all 25 Phase 1 quarantines exactly).
 
 ### Log retention (built, off)
@@ -160,3 +160,16 @@ User supplied the active roster, services per provider, and cash prices.
 
 ### Dialog accessibility
 - The add/edit dialog and the patient-copy preview share a `Modal` shell (`components/Modal.tsx`): focus moves to the first control on open, Tab and Shift+Tab stay inside, Escape closes, and focus returns to the button that opened it.
+
+## User answers (2026-10-05)
+
+| # | Topic | Decision |
+|---|---|---|
+| 23 | "Refresh data" | **Wipes the estimate** (full page reload with fresh directory data), as it originally did. The overnight change that kept and re-priced the estimate is reverted, and the demo "after refresh" scenario is removed. The edit dialog still opens a no-longer-valid choice empty with a note, as a safeguard. |
+| 24 | Fee Schedule row numbering | **Renumber the workbook by −3** (`FeeRates` Visit row, `ServiceComponents` Visit row, `Services` Cash price row, `CashPrices` Fee Schedule row) so they match the sheet. Done by hand in Excel before upload (`docs/SETUP-CHECKLIST.md` §3 step 2). The sync expects no offset; the diff warns otherwise. |
+| 25 | Log deletion (12-month retention) | **Stays off.** The code exists; no `LOG_RETENTION_ENABLED`, `CRON_SECRET` or cron entry. |
+| 26 | Real contracted amounts in demo data | **Left as they are** ($137.75, $103.31, $875.03 in `src/data/demo.ts`). |
+| 27 | PR and release approval | **The user approves PRs and production releases.** |
+| 28 | Next.js 16 upgrade (PostCSS advisory) | **Planned as a separate piece of work:** `docs/next16-upgrade-plan.md`. |
+
+Still open from the overnight questions: how the sync treats code-less Neurofeedback parents, the unlabelled KAP 90837 row, "(on hold)" add-ons and "(optional)" rows (`docs/fee-schedule-sync.md`).
