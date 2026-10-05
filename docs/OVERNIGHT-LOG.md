@@ -16,9 +16,8 @@ Baseline before any change: `npm test` 79/79, `npm run typecheck` clean, `npm ru
 | 6. Setup checklist | `cb7c732` | Docs only. Every Graph request written against the documented v1.0 endpoints with the known IDs filled in (CorporateDrive library, Billing Fee Schedule, the test OneDrive copy flagged as test-only); fallbacks noted where a response may omit `parentReference.siteId`. Linked from `README.md` and `docs/HANDOFF.md`. Unit 150/150, typecheck clean, browser 67/67. Not executed against Graph (no credentials tonight, and no Microsoft 365 searches allowed). |
 | 7a. Log retention (off by default) | `4755f67` | Unit 150 → 165 (`tests/retention.test.ts` with a mocked Graph client: flag and demo gating, cutoff incl. leap-day clamp, multi-page scan, batches of 20, rows without a valid date never deleted, dry run, per-run cap, 404 as already deleted, failures reported, failed read deletes nothing, route 404/401/200/502 with no Graph call when gated). Browser 67 → 69 (route is 404 in demo mode and off by default outside it, with no sign-in redirect). No cron entry added to `vercel.json`. |
 | 7b. Dialog accessibility | `24eb435` | Browser 69 → 78 (section 15: focus moves to the first field on Add and Edit, Tab/Shift+Tab trapped, Shift+Tab wraps to the last enabled control, Escape closes, focus returns to "+ Add service", to the row's Edit button after Save, and to "Preview patient copy"; preview traps focus and closes on Escape). The task 1 Escape-only handler was folded into the shared `Modal`. Unit 165/165, typecheck clean. |
-
 | Small fix: e2e no longer rewrites the sample PDF | `060f727` | Browser 78/78; tree clean after a run. |
-| Handoff and log | `1cec70e` and this commit | Docs. |
+| Handoff and log | `1cec70e`, then hashes recorded in the following commit | Docs. |
 
 ## In progress
 
