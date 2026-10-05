@@ -2,7 +2,7 @@
   "name": "mhca-estimator",
   "version": "0.1.0",
   "private": true,
-  "description": "MHCA Treatment Plan Estimator: pricing and rules engine (UI not yet built)",
+  "description": "MHCA Treatment Plan Estimator: Next.js app (Microsoft sign-in, Graph reads of the provider directory, print copy, de-identified log) and its pricing and rules engine",
   "type": "module",
   "scripts": {
     "dev": "next dev",
@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "next": "^15.5.27",
-    "next-auth": "^5.0.0-beta.32",
+    "next-auth": "5.0.0-beta.32",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

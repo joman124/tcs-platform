@@ -137,3 +137,8 @@ User supplied the active roster, services per provider, and cash prices.
 - Blocked lines are editable; the admin messages now say "edit or remove".
 - **"Refresh data" now keeps the estimate** (`router.refresh()` instead of a full page reload) and re-prices every line against the new data, so lines that became invalid show as blocked and can be fixed by editing. Before, refresh reloaded the page, which silently discarded the estimate. The estimate is still memory-only. Re-pricing after a refresh also counts as "not yet logged". (Assumption, reversible; listed in the morning questions.)
 - Demo mode has an invented "after refresh" scenario (a provider made inactive, a credentialing row dropped) that the browser tests select with a `demo-scenario` cookie. The app never sets that cookie, and it is ignored outside demo mode.
+
+### Release safety
+- `vercel.json` sets `git.deploymentEnabled.main = false`, so a merge or push to `main` no longer creates an automatic production deployment. It takes effect only once this file is on `main`. Feature-branch previews are unaffected. A release then needs a deliberate deployment (Vercel dashboard "Redeploy"/"Promote", or `vercel --prod`) after the user approves it. Vercel project settings were not changed.
+- `next-auth` is pinned to exactly `5.0.0-beta.32` (it is a beta; upgrade deliberately and re-test sign-in).
+- `npm audit --omit=dev` reports PostCSS inside `next` (build-time CSS processing of our own stylesheet, not exposed to user input). The fix is a major upgrade to Next 16; not done overnight, listed in the morning questions.
