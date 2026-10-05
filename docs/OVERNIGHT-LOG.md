@@ -19,11 +19,15 @@ Baseline before any change: `npm test` 79/79, `npm run typecheck` clean, `npm ru
 
 ## In progress
 
-- Small fixes found along the way, then the handoff update.
+(nothing: every task in the queue is done)
 
 ## Blocked / skipped
 
-(none yet)
+- **Phase 5 real-data run**: not possible tonight (no Entra or directory settings exist; setting them is the user's job). Tooling is ready: `/diagnostics`, `docs/phase5-checklist.md`.
+- **Fee Schedule dry run against the real directory**: not run (no Graph credentials). The engine was checked against the live sheet's layout instead (see task 5).
+- **Writing synced Fee Schedule rows**: out of scope tonight (no writes allowed; needs the row-numbering decision).
+- **Error page for an out-of-date workbook** is not browser-tested: demo mode never parses a workbook. The logic is unit-tested.
+- **Figma**: not used (quota exhausted, and not needed).
 
 ## Questions for the morning
 
@@ -32,14 +36,27 @@ Baseline before any change: `npm test` 79/79, `npm run typecheck` clean, `npm ru
 3. **Releases after merge**: with `vercel.json` on `main`, production deploys only when someone deploys deliberately. Who approves and performs releases?
 4. **Fee Schedule row numbering**: the live sheet's data starts at row 4; the workbook's `FeeRates`/`ServiceComponents`/`Services` "Cash price row"/`CashPrices` rows use Phase 1 numbering (3 higher). Before the sync writes anything: renumber the workbook by −3 (recommended: then rows match the sheet Billing sees), or have the sync write +3?
 5. **Fee Schedule shapes the spec did not cover** (handled as described in `docs/fee-schedule-sync.md`; please confirm): code-less Neurofeedback parents, the unlabelled 90837 row under KAP, `+Physical Intake (on hold)` included as a normal add-on, "(optional)" rows kept with the optional flag instead of dropped.
-7. **Log retention**: built and off. Turn it on (set `CRON_SECRET` and `LOG_RETENTION_ENABLED=1`, add the cron entry from `docs/estimate-log-sharepoint.md`)?
-6. **Demo data reuses three real contracted amounts** ($137.75, $103.31, $875.03 in `src/data/demo.ts`, from before tonight; the e2e checks and the Phase 5 checklist rely on them). Replace them with invented amounts (and update the checks)?
+6. **Log retention**: built and off. Turn it on (set `CRON_SECRET` and `LOG_RETENTION_ENABLED=1`, add the cron entry from `docs/estimate-log-sharepoint.md`)?
+7. **Demo data reuses three real contracted amounts** ($137.75, $103.31, $875.03 in `src/data/demo.ts`, from before tonight; the e2e checks and the Phase 5 checklist rely on them). Replace them with invented amounts (and update the checks)?
 
 ## Needs the user
 
 - For the Fee Schedule dry run (`npm run fee-schedule-diff`): the Entra app needs a **read** grant on the Billing site too (Sites.Selected), not only the directory and log sites.
-- The standing list is in `docs/HANDOFF.md` §3.
+- Review and merge PR #5 (nothing was merged or deployed to production tonight). `vercel.json` only protects `main` once merged.
+- Work through `docs/SETUP-CHECKLIST.md`, then `docs/phase5-checklist.md`.
+- The standing list is in `docs/HANDOFF.md` §3 (refreshed tonight).
 
 ## Notes
 
-- `npm run e2e` regenerates `docs/samples/sample-patient-copy.pdf` on every run (the date changes), so it is restored with `git checkout` after each run unless a change to the patient copy is intended.
+- Until the last small fix, `npm run e2e` rewrote `docs/samples/sample-patient-copy.pdf` on every run; it was restored with `git checkout` after each run. Now the run writes to the temp folder unless `UPDATE_SAMPLE=1`.
+- The Billing Fee Schedule was read once (read-only, exact IDs, no search) to confirm the layout. The export was kept outside the repo, in the session's tool-results and scratch folders; no values were committed. No other Microsoft 365 reads.
+- Ports were checked before each e2e run by the runner's own guard; servers were stopped by process group (no `pkill`).
+- Small fix found along the way: the e2e sample-PDF rewrite (above). Not changed, but noted: the Phase 1 review's cell references are 3 rows off (a correction note was added to that file).
+
+## Test counts
+
+| | Before | After |
+|---|---|---|
+| Unit (`npm test`) | 79 | 165 |
+| Browser (`npm run e2e`) | 44 | 78 |
+| Typecheck | clean | clean |
