@@ -38,21 +38,21 @@ For each line: open the estimator, choose "+ Add service", pick the service and 
 13. [ ] Enter "Test Patient". Add lines 4 (1 per week, 12 weeks), 5 (1 per week, 12 weeks) and 6 (total sessions 1). **Expected:** line totals $1,653.00, $1,239.72, $875.03; Full plan $3,767.75; Per week $241.06; Per month $1,044.59 or $1,044.60.
 14. [ ] Choose **Edit** on line 5. **Expected:** the dialog says "Edit service", everything is prefilled. Change weeks to 8 and "Save changes". **Expected:** the line stays second; line total $826.48; Full plan $3,354.51.
 15. [ ] Choose **Edit** on a line, change something, then **Cancel**. **Expected:** nothing changed.
-16. [ ] Choose "Refresh data". **Expected:** the estimate stays on screen and the message says lines were re-priced.
-17. [ ] "Preview patient copy". **Expected:** the edited values (8 weeks); no CPT codes, plan names, credentials or warnings; weekly, monthly and full-plan figures; "info@mentalhealthcenter.com"; no SAMPLE DATA watermark.
-18. [ ] Print (to PDF is fine). **Expected:** US Letter; then "Printed. Clear for the next patient?" appears.
+16. [ ] "Preview patient copy". **Expected:** the edited values (8 weeks); no CPT codes, plan names, credentials or warnings; weekly, monthly and full-plan figures; "info@mentalhealthcenter.com"; no SAMPLE DATA watermark.
+17. [ ] Print (to PDF is fine). **Expected:** US Letter; then "Printed. Clear for the next patient?" appears.
 
 ## D. The log (SharePoint list)
 
-19. [ ] Open the log list. **Expected:** exactly **one new row per printed line** (3 rows for step 18), all with the same EstimateId and today's date.
-20. [ ] **No patient name in any row** (search the list for "Test Patient": no results). Columns hold only IDs, payment type, payer, amounts and sessions.
-21. [ ] The row for line 5 shows the **edited** values (Sessions 8, LineTotal 826.48), not the values from before the edit. Editing before printing logs only the final values.
-22. [ ] Choose "Keep", print again without changes. **Expected:** no new rows (an estimate is logged once). Then edit any line and print again. **Expected:** a new set of rows with a new EstimateId.
+18. [ ] Open the log list. **Expected:** exactly **one new row per printed line** (3 rows for step 17), all with the same EstimateId and today's date.
+19. [ ] **No patient name in any row** (search the list for "Test Patient": no results). Columns hold only IDs, payment type, payer, amounts and sessions.
+20. [ ] The row for line 5 shows the **edited** values (Sessions 8, LineTotal 826.48), not the values from before the edit. Editing before printing logs only the final values.
+21. [ ] Choose "Keep", print again without changes. **Expected:** no new rows (an estimate is logged once). Then edit any line and print again. **Expected:** a new set of rows with a new EstimateId.
 
 ## E. Clearing
 
-23. [ ] Choose "Clear" after printing. **Expected:** name and lines are gone.
-24. [ ] Add a line, reload the page. **Expected:** blank estimate.
+22. [ ] Choose "Clear" after printing. **Expected:** name and lines are gone.
+23. [ ] Add a line, reload the page. **Expected:** blank estimate.
+24. [ ] Add a line, then choose "Refresh data". **Expected:** the page reloads with fresh directory data and the estimate is wiped (name and lines gone).
 25. [ ] Leave an estimate idle for 15 minutes. **Expected:** cleared, with a message.
 
 ## Report back

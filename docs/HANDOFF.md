@@ -8,11 +8,11 @@ Repo: `joman124/tcs-platform`. `main` contains everything through PR #2 (merge c
 
 Unattended work on branch `claude/kind-euler-50msb6`, PR https://github.com/joman124/tcs-platform/pull/5 (not merged). Full log: `docs/OVERNIGHT-LOG.md`. Tests went from 79 unit / 44 browser to **165 unit / 78 browser**.
 
-- **Edit a line** (user request): Edit next to Remove reopens the same dialog prefilled; saves in place; stale choices open empty with a note. **"Refresh data" now keeps and re-prices the estimate** instead of reloading the page (it used to drop the estimate silently).
+- **Edit a line** (user request): Edit next to Remove reopens the same dialog prefilled; saves in place; stale choices open empty with a note. ("Refresh data" briefly kept the estimate overnight; **the user reverted that on 2026-10-05: refresh wipes the estimate.**)
 - **Release safety:** `vercel.json` stops automatic production deploys from `main` (**only once PR #5 is merged**). `next-auth` pinned to `5.0.0-beta.32`.
 - **Workbook version check:** an older workbook (e.g. no `Services` "Allowed tiers") is refused with a message naming the missing tab/column, instead of mispricing.
 - **`/diagnostics`** (signed-in only, absent in demo mode): settings by name, workbook row counts, log-list reachability (read only), load time. Real-data checklist: `docs/phase5-checklist.md`.
-- **Fee Schedule sync engine + dry-run diff** (`npm run fee-schedule-diff`, writes nothing): `docs/fee-schedule-sync.md`. **Finding:** the live sheet's data starts at **row 4**, not row 7; Phase 1 row numbers (and the workbook's visit and cash-price row keys) are 3 higher. Confirmed by reading the Billing Fee Schedule once, read-only: all 25 Phase 1 quarantines reproduce exactly.
+- **Fee Schedule sync engine + dry-run diff** (`npm run fee-schedule-diff`, writes nothing): `docs/fee-schedule-sync.md`. **Finding:** the live sheet's data starts at **row 4**, not row 7; Phase 1 row numbers (and the workbook's visit and cash-price row keys) are 3 higher. **Decided: renumber the workbook by −3** (setup checklist §3 step 2). Confirmed by reading the Billing Fee Schedule once, read-only: all 25 Phase 1 quarantines reproduce exactly.
 - **Setup guide:** `docs/SETUP-CHECKLIST.md` (fixes issue 9).
 - **Stretch:** 12-month log retention (built, **off**, no cron scheduled); dialog focus management; the e2e run no longer rewrites the sample PDF.
 
@@ -62,7 +62,7 @@ Step-by-step guide with every known ID filled in: **[`docs/SETUP-CHECKLIST.md`](
 6. **Vercel variables** (Production and Preview, secrets as Sensitive): `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AUTH_SECRET`, `DIRECTORY_DRIVE_ID`, `DIRECTORY_ITEM_ID`, `LOG_SITE_ID`, `LOG_LIST_ID`. The user sets the secrets; they must never be pasted into chat. Redeploy afterward. Demo mode turns itself off once real settings exist.
 7. **Open Excel once** and confirm the workbook shows no errors (formulas were never recalculated here).
 8. Small answers: spelling of **Denish** Gusich (earlier "Denise"); postdoc first names; logo file (deferred).
-9. **New (2026-10-05): review and merge PR #5**, and answer its morning questions (`docs/OVERNIGHT-LOG.md`): keep "Refresh data" keeping the estimate; Fee Schedule row renumbering (−3 in the workbook, recommended); sync edge cases; whether to turn on log retention; replace the three real amounts in the demo data; who approves releases.
+9. **Done (2026-10-05):** PR #5 merged; morning questions answered (`DECISIONS.md` #23–28). **Before uploading the workbook, renumber its Fee Schedule row columns by −3** (`docs/SETUP-CHECKLIST.md` §3 step 2). Still open: confirm the sync's handling of Neurofeedback, the unlabelled KAP row, "(on hold)" and "(optional)" rows.
 10. **New:** for the Fee Schedule dry run, ask the MHCA admin for a **read** grant on the Billing site as well (in the admin message in `docs/SETUP-CHECKLIST.md` §5).
 
 ### Needs other people
@@ -74,7 +74,7 @@ Step-by-step guide with every known ID filled in: **[`docs/SETUP-CHECKLIST.md`](
 2. **Engine and dry-run diff built** (`src/sync/feeSchedule.ts`, `scripts/fee-schedule-diff.ts`, `docs/fee-schedule-sync.md`). Not built: writing synced rows to the workbook (needs the row-numbering decision and a write grant). Correction: data rows start at sheet row **4** (the "row 7" below is Phase 1 numbering). Original layout notes: data rows start at sheet row 7; rate columns (doctoral / master's): Aetna N/P, UHC/Optum/UMR S/U, UHC Advantage X/Z, Cigna AB/AD, BCBS AG/AI, Medicare AM/AO (**ambiguous**) and AP/AQ (Medicare 2020), ACN/EHN/Intel AS/AT, TriWest AV/AX, AHCCCS AZ/BB, AZCH BD/BF, Allwell/Ambetter BI/BK (header misaligned); cash price column H; a visit is a parent row plus rows starting with `+`; add-on rows labelled "(optional)" are excluded by default; cells with text or errors are unusable; a cell more than 25% from the median for its CPT is quarantined.
 3. **Figma:** build frame B (patient copy), the add-line modal, and visually re-check frame A. The Figma MCP is limited to 20 calls per month on the Starter plan and the limit was used up in October 2026. It resets monthly, or upgrade to a Full or Dev seat.
 4. **Production release** needs the user's explicit approval. Automatic production deploys from `main` are turned off by `vercel.json` once PR #5 merges.
-5. Log pruning: **built, off by default** (`docs/estimate-log-sharepoint.md` says how to turn it on). `next-auth`: **pinned** to 5.0.0-beta.32; re-check before release. New: `npm audit` flags PostCSS inside Next (fix is Next 16, a major upgrade).
+5. Log pruning: **built, and stays off** (user decision 2026-10-05; `docs/estimate-log-sharepoint.md` says how to turn it on). `next-auth`: **pinned** to 5.0.0-beta.32; re-check before release. New: `npm audit` flags PostCSS inside Next (fix is Next 16, a major upgrade): **planned separately**, `docs/next16-upgrade-plan.md`. The user approves PRs and releases.
 
 ## 4. Issues and mistakes from this session
 

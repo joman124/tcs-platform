@@ -134,7 +134,10 @@ export function formatDiffReport(report: SyncReport, diff: FeeRatesDiff, limit =
   if (diff.rowOffset !== 0) {
     L.push(
       `WARNING: the current FeeRates visit rows line up with the sheet only when shifted by ${diff.rowOffset > 0 ? '+' : ''}${diff.rowOffset}${diff.rowOffsetDetected ? ' (detected)' : ' (given)'}. ` +
-        'ServiceComponents, Services "Cash price row" and CashPrices use the same numbering: renumber them together before writing synced rows.',
+        (diff.rowOffset === -3
+          ? 'The workbook has not been renumbered yet: subtract 3 from its Fee Schedule row columns (docs/SETUP-CHECKLIST.md, step 3.2). '
+          : 'Expected 0, because the workbook is renumbered to match the sheet (decision 2026-10-05): it may have been renumbered twice, or rows moved on the sheet. ') +
+        'Do not write synced rows until this reads 0.',
     );
   }
   L.push(`Matched ${diff.matched}, unchanged ${diff.unchanged}, changed ${diff.changed.length}, only in the sync ${diff.added.length}, only in the current tab ${diff.removed.length}.`);

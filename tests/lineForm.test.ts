@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { formFromLine, type NewLine } from '../components/lineForm';
-import { demoData, demoScenario } from '../src/data/demo';
 import type { Frequency, Payment } from '../src/engine';
 import { data } from './fixtures';
 
@@ -81,30 +80,5 @@ describe('formFromLine: choices that are no longer valid', () => {
     const r = formFromLine(line('Individual Counseling', 'P3', ins('Aetna Commercial'), weekly, 'S1'), data);
     expect(r.form).toMatchObject({ providerId: 'P3', payType: '', subPlan: '' });
     expect(r.stale.payment).toContain('insurance');
-  });
-});
-
-describe('demo "after refresh" scenario', () => {
-  it('is only used when asked for', () => {
-    expect(demoScenario(undefined)).toBe(demoData);
-    expect(demoScenario('anything-else')).toBe(demoData);
-  });
-
-  it('makes a provider inactive and drops a credentialing row, leaving the base demo data untouched', () => {
-    const after = demoScenario('after-refresh');
-    expect(after.providers.find((p) => p.id === 'D06')?.status).toBe('Inactive');
-    expect(after.credentialing.some((c) => c.providerId === 'D02' && c.payer === 'Aetna')).toBe(false);
-    expect(demoData.providers.find((p) => p.id === 'D06')?.status).toBe('Active');
-    expect(demoData.credentialing.some((c) => c.providerId === 'D02' && c.payer === 'Aetna')).toBe(true);
-  });
-
-  it('turns saved lines stale in the edit form', () => {
-    const after = demoScenario('after-refresh');
-    const casey = formFromLine(line('Individual Counseling', 'D02', ins('Aetna Commercial Plans'), { kind: 'weekly', perWeek: 1, weeks: 4 }, 'S-IND-M'), after);
-    expect(casey.form).toMatchObject({ payType: 'insurance', subPlan: '' });
-    expect(casey.stale.plan).toBeDefined();
-    const sam = formFromLine(line('Couples Counseling', 'D06', cash, { kind: 'weekly', perWeek: 1, weeks: 8 }, 'S-CPL'), after);
-    expect(sam.form.providerId).toBe('');
-    expect(sam.stale.provider).toContain('Sam Second');
   });
 });

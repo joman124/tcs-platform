@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { AddLineDialog, type NewLine } from './AddLineDialog';
 import { Modal } from './Modal';
 import { PrintSheet, type PrintLine } from './PrintSheet';
@@ -59,7 +58,6 @@ export function Estimator({
   const [loaded, setLoaded] = useState(loadedAt);
   const logged = useRef(false);
   const idRef = useRef(0);
-  const router = useRouter();
 
   const results = useMemo(() => lines.map((l) => priceLine(l.input, data)), [lines, data]);
   const summary = useMemo(() => summarize(results), [results]);
@@ -83,10 +81,10 @@ export function Estimator({
     logged.current = false;
   }, []);
 
-  // Any change to the estimate (adding, editing, removing, or re-pricing after "Refresh data") means it has not been logged yet.
+  // Any change to the estimate (adding, editing or removing a line) means it has not been logged yet.
   useEffect(() => {
     logged.current = false;
-  }, [lines, data]);
+  }, [lines]);
 
   // Auto-clear after 15 idle minutes.
   useEffect(() => {
@@ -157,9 +155,9 @@ export function Estimator({
       const j = (await r.json()) as { loadedAt?: number; error?: string };
       if (!r.ok) throw new Error(j.error ?? 'Refresh failed');
       setLoaded(j.loadedAt ?? Date.now());
-      // Re-renders with the new directory data but keeps the estimate in memory; lines re-price straight away.
-      router.refresh();
-      setRefreshMsg('Directory data refreshed. Lines were re-priced with the new data.');
+      // A full reload: the estimate is wiped (user decision 2026-10-05) and the page starts blank with the new data.
+      setRefreshMsg('Refreshed. Reloading…');
+      window.location.reload();
     } catch (e) {
       setRefreshMsg(e instanceof Error ? e.message : 'Refresh failed');
     }
