@@ -2,6 +2,8 @@
 
 Source: Billing Department `MHCA Fee Schedule.xlsx` (modified 2026-10-01), read-only. Nothing in the source was changed.
 
+> **Correction (2026-10-05):** the row numbers in this document are **3 higher** than the rows on the sheet (AD51 is cell AD48, row 90 is row 87, and so on). Data starts at sheet row 4, not 7. See `docs/fee-schedule-sync.md`, "Row numbering differs from the Phase 1 snapshot".
+
 ## Quarantined cells (treated as unparsed/blocked until you fix the source)
 
 | Cell | Visit (parent row label) | CPT | Payer | Tier | Value | Median for CPT |

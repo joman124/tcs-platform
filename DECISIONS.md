@@ -149,3 +149,8 @@ User supplied the active roster, services per provider, and cash prices.
 
 ### Readiness page
 - `/diagnostics` (signed-in MHCA accounts only; returns 404 in demo mode, where there is no sign-in) shows which settings are present **by name only**, whether the workbook can be read through Graph with a row count per tab and the version check, whether the log list can be read (a GET of the list; it never writes), and when the directory data in use was loaded. It is not linked from the estimator; the Phase 5 checklist (`docs/phase5-checklist.md`) points to it.
+
+### Fee Schedule sync (engine and dry run only)
+- `src/sync/feeSchedule.ts` turns the "Fee Schedule" tab into `FeeRates` and `CashPrices` rows plus a review report; `scripts/fee-schedule-diff.ts` prints a dry-run diff against the current `FeeRates` tab. Nothing writes. Details: `docs/fee-schedule-sync.md`.
+- **Row numbering (finding):** the live sheet's data starts at row 4, not row 7. Phase 1's row numbers (and so the current workbook's visit and cash-price rows) are 3 higher than the sheet. The sync numbers rows from the sheet; the diff detects the offset and warns. Renumbering is a user decision before any write.
+- Assumptions: parents with no code or a non-CPT code have no rate of their own and anchor their `+` rows (a code-less row only when `+` rows follow); an unlabelled CPT row under a visit belongs to it; "(optional)" add-ons are kept in `FeeRates` with the optional flag (the engine already leaves them out by default) rather than dropped; add-on rows with notes such as "(on hold)" are included and listed; numbers stored as text are unusable by default; `$0` is unusable; the quarantine median is per CPT, payer and tier (this reproduces all 25 Phase 1 quarantines exactly).

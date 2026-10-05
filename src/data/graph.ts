@@ -38,11 +38,15 @@ export async function graphFetch(path: string, init: RequestInit = {}): Promise<
   });
 }
 
+/** A tab's used range: its top-left address (e.g. `'Fee Schedule'!A1:BU160`) and cell values. Read-only. */
+export async function readUsedRange(drive: string, item: string, sheet: string): Promise<{ address: string; values: unknown[][] }> {
+  const res = await graphFetch(`/drives/${drive}/items/${item}/workbook/worksheets('${encodeURIComponent(sheet)}')/usedRange(valuesOnly=true)?$select=address,values`);
+  if (!res.ok) throw new Error(`Reading tab "${sheet}" failed (${res.status}).`);
+  return (await res.json()) as { address: string; values: unknown[][] };
+}
+
 export async function readSheet(drive: string, item: string, sheet: string): Promise<unknown[][]> {
-  const res = await graphFetch(`/drives/${drive}/items/${item}/workbook/worksheets('${encodeURIComponent(sheet)}')/usedRange(valuesOnly=true)?$select=values`);
-  if (!res.ok) throw new Error(`Reading directory tab "${sheet}" failed (${res.status}).`);
-  const json = (await res.json()) as { values: unknown[][] };
-  return json.values;
+  return (await readUsedRange(drive, item, sheet)).values;
 }
 
 /** Names of the workbook's tabs. A 404 here means the workbook itself was not found or is not shared with the app. */
