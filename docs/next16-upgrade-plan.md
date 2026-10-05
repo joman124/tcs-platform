@@ -57,5 +57,5 @@ Revert the PR. Nothing else (data, settings, SharePoint) is touched by this upgr
 - No code used synchronous request APIs, so nothing else changed. No codemod was needed.
 - Checks: unit 165/165, typecheck clean, browser 74/74 (including sign-in redirect, guarded APIs, the "not set up" page with no settings, and the US Letter print checks). `npm audit --omit=dev`: **0 vulnerabilities** (the PostCSS advisory is gone).
 - Still to do before a release: one real Entra sign-in through the proxy (step 8 above). The demo preview cannot exercise it.
-- Follow-up, dev tooling only: `npm audit` still reports the vitest/vite/vite-node/esbuild advisories (they do not ship to Vercel). Fixing them means vitest 5, which no longer uses `vite-node`, the runner of `npm run fee-schedule-diff`; switch that script to another TypeScript runner in the same change.
+- Follow-up, dev tooling only: the vitest/vite/vite-node/esbuild advisories. **Done 2026-10-05:** `vitest` 2 → 5.0.3 with `vite` 8.3.2; `vite-node` removed and `npm run fee-schedule-diff` now runs on `tsx`. `npm audit` (all dependencies): 0 vulnerabilities. Running the unit tests now needs Node 22.12+ locally (Vercel does not run them).
 
