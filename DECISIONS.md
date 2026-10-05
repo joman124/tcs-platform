@@ -181,3 +181,6 @@ Still open from the overnight questions: how the sync treats code-less Neurofeed
 
 ### Next.js 16 (2026-10-05)
 - Upgraded to `next` 16.3.8 to clear the PostCSS advisory (`npm audit --omit=dev` now clean). `middleware.ts` is now `proxy.ts`. Details and remaining steps: `docs/next16-upgrade-plan.md`. Release still needs the user's approval and one real sign-in check.
+
+### Test tooling (2026-10-05)
+- `vitest` 2 → 5.0.3 (with `vite` 8.3.2) to clear the dev-only vite/esbuild advisories; `vite-node` replaced by `tsx` as the runner for `npm run fee-schedule-diff`. `npm audit` is clean for all dependencies. Local test runs need Node 22.12+; the app's own requirement stays `>=20.9`.
