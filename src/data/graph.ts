@@ -38,7 +38,7 @@ export async function graphFetch(path: string, init: RequestInit = {}): Promise<
   });
 }
 
-async function readSheet(drive: string, item: string, sheet: string): Promise<unknown[][]> {
+export async function readSheet(drive: string, item: string, sheet: string): Promise<unknown[][]> {
   const res = await graphFetch(`/drives/${drive}/items/${item}/workbook/worksheets('${encodeURIComponent(sheet)}')/usedRange(valuesOnly=true)?$select=values`);
   if (!res.ok) throw new Error(`Reading directory tab "${sheet}" failed (${res.status}).`);
   const json = (await res.json()) as { values: unknown[][] };

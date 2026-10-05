@@ -2,6 +2,7 @@
 import { spawn, execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { chromium } from 'playwright';
+import { encode } from '@auth/core/jwt';
 
 const PORT = 3111;
 const BASE = `http://localhost:${PORT}`;
@@ -248,9 +249,13 @@ try {
     ok('stale provider: choosing a new provider fixes the line and printing turns on', (await page.locator('tr.blocked').count()) === 0 && (await lineTotal(page, 1)) === '$1,800.00' && !(await page.locator('#print').isDisabled()), await lineTotal(page, 1));
     await ctx.close(); }
 
+  // 14. The diagnostics page does not exist in demo mode (no sign-in there)
+  { const r = await fetch(`${BASE}/diagnostics`, { redirect: 'manual' });
+    ok('diagnostics: not found in demo mode', r.status === 404, String(r.status)); }
+
   // 11. Outside demo mode every page and API route requires an MHCA sign-in
   { const port2 = PORT + 1;
-    const prod = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-p', String(port2)], { env: { ...process.env, DEMO_MODE: '', AUTH_SECRET: 'local-test-secret', AZURE_TENANT_ID: '00000000-0000-0000-0000-000000000000', AZURE_CLIENT_ID: 'x', AZURE_CLIENT_SECRET: 'x' }, stdio: 'ignore', detached: true });
+    const prod = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-p', String(port2)], { env: { ...process.env, DEMO_MODE: '', AUTH_SECRET: 'local-test-secret', AZURE_TENANT_ID: '00000000-0000-0000-0000-000000000000', AZURE_CLIENT_ID: 'client-id-for-e2e', AZURE_CLIENT_SECRET: 'secret-value-for-e2e', DIRECTORY_DRIVE_ID: '', DIRECTORY_ITEM_ID: '', LOG_SITE_ID: '', LOG_LIST_ID: '' }, stdio: 'ignore', detached: true });
     for (let i = 0; i < 60; i++) { try { await fetch(`http://localhost:${port2}/api/auth/providers`); break; } catch {} await new Promise((r) => setTimeout(r, 500)); }
     const page = await fetch(`http://localhost:${port2}/`, { redirect: 'manual' });
     ok('signed-out visitors are redirected to Microsoft sign-in', page.status >= 300 && page.status < 400 && (page.headers.get('location') ?? '').includes('/api/auth/signin'), `${page.status} ${page.headers.get('location')}`);
@@ -260,6 +265,14 @@ try {
     ok('refresh endpoint is not reachable signed out', refresh.status !== 200);
     const providers = await (await fetch(`http://localhost:${port2}/api/auth/providers`)).json();
     ok('only the Microsoft Entra provider is offered', Object.keys(providers).join() === 'microsoft-entra-id', Object.keys(providers).join());
+    const diag = await fetch(`http://localhost:${port2}/diagnostics`, { redirect: 'manual' });
+    ok('diagnostics: signed-out visitors are redirected to sign-in', diag.status >= 300 && diag.status < 400 && (diag.headers.get('location') ?? '').includes('/api/auth/signin'), `${diag.status} ${diag.headers.get('location')}`);
+    // Signed in (a session minted with this server's test secret). No directory IDs are set, so nothing goes to the network.
+    const session = await encode({ token: { name: 'Test Admin', email: 'admin@example.test', sub: 'test-admin' }, secret: 'local-test-secret', salt: 'authjs.session-token' });
+    const signedIn = await fetch(`http://localhost:${port2}/diagnostics`, { redirect: 'manual', headers: { cookie: `authjs.session-token=${session}` } });
+    const html = await signedIn.text();
+    ok('diagnostics: signed in, lists settings by name and which are missing', signedIn.status === 200 && html.includes('AZURE_CLIENT_SECRET') && html.includes('DIRECTORY_ITEM_ID') && /Missing/.test(html) && /Present/.test(html), String(signedIn.status));
+    ok('diagnostics: never shows a setting value', !html.includes('secret-value-for-e2e') && !html.includes('local-test-secret') && !html.includes('client-id-for-e2e'));
     try { process.kill(-prod.pid, 'SIGTERM'); } catch {} }
 } finally {
   await browser.close(); stop();

@@ -146,3 +146,6 @@ User supplied the active roster, services per provider, and cash prices.
 ### Workbook version check
 - When the directory workbook loads, every tab and column header the app reads must be present (`REQUIRED_COLUMNS` in `src/data/workbook.ts`). If any is missing, nothing is priced: the app shows "This directory workbook is an older build: the Services tab has no 'Allowed tiers' column. ..." naming each missing tab and column. Some columns are matched by prefix because the real headers carry hints such as "(Y/N)". Extra tabs and columns are ignored. The formula-driven `ContractedRates` tab is still not read, so nothing depends on Excel recalculation.
 - The Graph read lists the workbook's tabs first, reads only those that exist, and reports a missing workbook (wrong IDs or not shared) separately from a missing tab.
+
+### Readiness page
+- `/diagnostics` (signed-in MHCA accounts only; returns 404 in demo mode, where there is no sign-in) shows which settings are present **by name only**, whether the workbook can be read through Graph with a row count per tab and the version check, whether the log list can be read (a GET of the list; it never writes), and when the directory data in use was loaded. It is not linked from the estimator; the Phase 5 checklist (`docs/phase5-checklist.md`) points to it.

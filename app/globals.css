@@ -118,3 +118,7 @@ select { width: 100%; font-size: 15px; padding: 9px 10px; border: 1px solid var(
 }
 @media (max-width: 720px) { .steps, .pay, .freq { grid-template-columns: 1fr; } }
 .row-actions { white-space: nowrap; }
+.diag { max-width: 860px; }
+.diag h2 { font-size: 18px; margin: 28px 0 8px; }
+.diag table { background: var(--white); border: 1px solid var(--navy); }
+.mono-cell { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 14px; }
