@@ -47,6 +47,68 @@ const num = (v: unknown): number | null => {
 };
 const yes = (v: unknown): boolean => str(v).toUpperCase() === 'Y';
 
+export type SheetName = (typeof SHEETS)[number];
+
+/** A required column: exact header text, or a header that starts with `prefix` (real headers carry hints like "(Y/N)"). */
+type RequiredColumn = string | { prefix: string };
+const P = (prefix: string): RequiredColumn => ({ prefix });
+
+/**
+ * Every header `parseWorkbook` reads, per tab. Older workbook builds lack some of these (e.g. Services "Allowed tiers",
+ * without which counseling is priced at the wrong tier), so a missing one stops the load instead of mispricing.
+ */
+export const REQUIRED_COLUMNS: Record<SheetName, readonly RequiredColumn[]> = {
+  Providers: ['Provider ID', 'Name', 'Credential', 'Status', 'Accepts', P('Cash rate override'), P('Bills under'), P('Excluded payers')],
+  Services: ['Service ID', 'Patient-facing name', P('Active in estimator'), P('Cash price row'), P('Per-session service'), P('Cash price override'), P('Allowed tiers')],
+  ServiceComponents: ['Service ID', 'Visit row (Fee Schedule parent row)', 'Quantity', P('Include optional')],
+  ProviderServices: ['Provider ID', 'Service ID', P('Cash price override')],
+  Credentialing: ['Provider ID', 'Status (normalized)', 'Fee Schedule payer'],
+  PayerMap: ['Sub-plan', 'Parent payer (Fee Schedule)', 'Network'],
+  PayerKey: ['Fee Schedule payer', 'Rate header date', 'Quarantined'],
+  FeeRates: ['Visit row', 'Component CPT', 'Is add-on', 'Optional add-on', 'Payer', 'Credential tier', 'Rate', 'Status'],
+  CashPrices: ['Fee Schedule row', 'Cash price', 'Status'],
+};
+
+export interface MissingPart {
+  tab: SheetName;
+  /** Absent when the whole tab is missing or has no header row. */
+  column?: string;
+}
+
+/** The directory workbook does not have the tabs or columns this app reads: an older or edited build. */
+export class WorkbookVersionError extends Error {
+  readonly missing: MissingPart[];
+  constructor(missing: MissingPart[]) {
+    const parts = missing.map((m) => (m.column ? `the ${m.tab} tab has no '${m.column}' column` : `it has no '${m.tab}' tab (or the tab has no header row)`));
+    super(`This directory workbook is an older build: ${parts.join('; ')}. Upload the latest MHCA-Provider-Directory.xlsx, or restore the missing ${missing.length === 1 ? 'part' : 'parts'}.`);
+    this.name = 'WorkbookVersionError';
+    this.missing = missing;
+  }
+}
+
+/** Every required tab and column header that is not in the workbook. Empty when the workbook is current. */
+export function missingParts(sheets: Partial<Sheets>): MissingPart[] {
+  const out: MissingPart[] = [];
+  for (const tab of SHEETS) {
+    const header = (sheets[tab]?.[0] ?? []).map(str).filter(Boolean);
+    if (header.length === 0) {
+      out.push({ tab });
+      continue;
+    }
+    for (const c of REQUIRED_COLUMNS[tab]) {
+      const found = typeof c === 'string' ? header.includes(c) : header.some((h) => h.startsWith(c.prefix));
+      if (!found) out.push({ tab, column: typeof c === 'string' ? c : c.prefix });
+    }
+  }
+  return out;
+}
+
+/** Throws a WorkbookVersionError naming each missing tab and column. */
+export function checkWorkbook(sheets: Partial<Sheets>): void {
+  const missing = missingParts(sheets);
+  if (missing.length > 0) throw new WorkbookVersionError(missing);
+}
+
 type Row = Record<string, unknown>;
 
 /** Turn a sheet into row objects keyed by header text. Rows with an empty first cell are dropped. */
@@ -77,6 +139,8 @@ export function toDate(v: unknown): Date | null {
 const STATUS_RANK: Record<CredentialStatus, number> = { Credentialed: 4, Pending: 3, 'Needs review': 2, 'Not eligible': 1, 'Do not submit': 0 };
 
 export function parseWorkbook(sheets: Sheets, now: Date = new Date()): EngineData {
+  checkWorkbook(sheets);
+
   // ---- Providers
   const providers: Provider[] = rows(sheets.Providers, 'Providers').map((r) => {
     const cred = str(col(r, 'Credential')); // first match is "Credential"

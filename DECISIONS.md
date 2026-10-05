@@ -142,3 +142,7 @@ User supplied the active roster, services per provider, and cash prices.
 - `vercel.json` sets `git.deploymentEnabled.main = false`, so a merge or push to `main` no longer creates an automatic production deployment. It takes effect only once this file is on `main`. Feature-branch previews are unaffected. A release then needs a deliberate deployment (Vercel dashboard "Redeploy"/"Promote", or `vercel --prod`) after the user approves it. Vercel project settings were not changed.
 - `next-auth` is pinned to exactly `5.0.0-beta.32` (it is a beta; upgrade deliberately and re-test sign-in).
 - `npm audit --omit=dev` reports PostCSS inside `next` (build-time CSS processing of our own stylesheet, not exposed to user input). The fix is a major upgrade to Next 16; not done overnight, listed in the morning questions.
+
+### Workbook version check
+- When the directory workbook loads, every tab and column header the app reads must be present (`REQUIRED_COLUMNS` in `src/data/workbook.ts`). If any is missing, nothing is priced: the app shows "This directory workbook is an older build: the Services tab has no 'Allowed tiers' column. ..." naming each missing tab and column. Some columns are matched by prefix because the real headers carry hints such as "(Y/N)". Extra tabs and columns are ignored. The formula-driven `ContractedRates` tab is still not read, so nothing depends on Excel recalculation.
+- The Graph read lists the workbook's tabs first, reads only those that exist, and reports a missing workbook (wrong IDs or not shared) separately from a missing tab.

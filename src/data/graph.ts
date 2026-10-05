@@ -45,10 +45,23 @@ async function readSheet(drive: string, item: string, sheet: string): Promise<un
   return json.values;
 }
 
-/** Read every tab the app needs from the directory workbook. Read-only. */
+/** Names of the workbook's tabs. A 404 here means the workbook itself was not found or is not shared with the app. */
+export async function listWorksheets(drive: string, item: string): Promise<string[]> {
+  const res = await graphFetch(`/drives/${drive}/items/${item}/workbook/worksheets?$select=name`);
+  if (res.status === 404) throw new Error('The directory workbook was not found. Check DIRECTORY_DRIVE_ID and DIRECTORY_ITEM_ID, and that the workbook is shared with the app.');
+  if (!res.ok) throw new Error(`Reading the directory workbook failed (${res.status}).`);
+  const json = (await res.json()) as { value: { name: string }[] };
+  return json.value.map((w) => w.name);
+}
+
+/**
+ * Read every tab the app needs from the directory workbook. Read-only. Tabs that do not exist are left out, so the
+ * version check in parseWorkbook can name them instead of failing on a bare 404.
+ */
 export async function readDirectoryWorkbook(): Promise<Sheets> {
   const drive = need('DIRECTORY_DRIVE_ID');
   const item = need('DIRECTORY_ITEM_ID');
-  const entries = await Promise.all(SHEETS.map(async (s) => [s, await readSheet(drive, item, s)] as const));
+  const present = new Set(await listWorksheets(drive, item));
+  const entries = await Promise.all(SHEETS.filter((s) => present.has(s)).map(async (s) => [s, await readSheet(drive, item, s)] as const));
   return Object.fromEntries(entries);
 }
