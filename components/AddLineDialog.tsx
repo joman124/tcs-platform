@@ -3,6 +3,8 @@
 import { useMemo, useState } from 'react';
 import { fmt } from './format';
 import { displayName } from './format';
+import { EMPTY_FORM, formFromLine, type FormField, type NewLine, type PayType } from './lineForm';
+import { Modal } from './Modal';
 import {
   plansForProvider,
   priceLine,
@@ -15,20 +17,37 @@ import {
   type Payment,
 } from '@/src/engine';
 
-export interface NewLine {
-  serviceName: string;
-  input: LineInput;
-}
+export type { NewLine };
 
-export function AddLineDialog({ data, onAdd, onClose }: { data: EngineData; onAdd: (l: NewLine) => void; onClose: () => void }) {
+/**
+ * Add a line, or edit one when `initial` is given. Edit mode starts from the line's saved choices (set directly,
+ * not through pickService/pickProvider, which would clear the fields that depend on them). A saved choice the
+ * current data no longer offers starts empty with a note until it is chosen again.
+ */
+export function AddLineDialog({ data, initial, onSave, onClose }: { data: EngineData; initial?: NewLine; onSave: (l: NewLine) => void; onClose: () => void }) {
+  const editing = initial !== undefined;
   const names = useMemo(() => serviceNames(data), [data]);
-  const [serviceName, setServiceName] = useState('');
-  const [providerId, setProviderId] = useState('');
-  const [payType, setPayType] = useState<'cash' | 'insurance' | ''>('');
-  const [subPlan, setSubPlan] = useState('');
-  const [mode, setMode] = useState<'week' | 'total'>('week');
-  const [a, setA] = useState('1');
-  const [b, setB] = useState('12');
+  const [start] = useState(() => (initial ? formFromLine(initial, data) : { form: EMPTY_FORM, stale: {} as Partial<Record<FormField, string>> }));
+  const [serviceName, setServiceName] = useState(start.form.serviceName);
+  const [providerId, setProviderId] = useState(start.form.providerId);
+  const [payType, setPayType] = useState<PayType>(start.form.payType);
+  const [subPlan, setSubPlan] = useState(start.form.subPlan);
+  const [mode, setMode] = useState(start.form.mode);
+  const [a, setA] = useState(start.form.a);
+  const [b, setB] = useState(start.form.b);
+  // A note shows only while its field is still empty and the choices it depends on are unchanged.
+  const sameUpstream: Record<FormField, boolean> = {
+    service: true,
+    provider: serviceName === start.form.serviceName,
+    payment: serviceName === start.form.serviceName && providerId === start.form.providerId,
+    plan: serviceName === start.form.serviceName && providerId === start.form.providerId,
+  };
+  const staleNote = (field: FormField, empty: boolean) =>
+    empty && sameUpstream[field] && start.stale[field] ? (
+      <p className="attn" data-testid={`stale-${field}`}>
+        {start.stale[field]}
+      </p>
+    ) : null;
 
   const providers = useMemo(() => (serviceName ? providersForService(serviceName, data) : []), [serviceName, data]);
   const provider = providers.find((p) => p.id === providerId);
@@ -64,9 +83,9 @@ export function AddLineDialog({ data, onAdd, onClose }: { data: EngineData; onAd
   }
 
   return (
-    <div className="overlay" role="dialog" aria-modal="true" aria-label="Add service">
+    <Modal label={editing ? 'Edit service' : 'Add service'} onClose={onClose}>
       <div className="modal">
-        <h2>Add a service</h2>
+        <h2>{editing ? 'Edit service' : 'Add a service'}</h2>
         <div className="steps">
           <div>
             <label htmlFor="svc">Service</label>
@@ -78,6 +97,7 @@ export function AddLineDialog({ data, onAdd, onClose }: { data: EngineData; onAd
                 </option>
               ))}
             </select>
+            {staleNote('service', !serviceName)}
           </div>
           <div>
             <label htmlFor="prov">Provider</label>
@@ -90,6 +110,7 @@ export function AddLineDialog({ data, onAdd, onClose }: { data: EngineData; onAd
                 </option>
               ))}
             </select>
+            {staleNote('provider', !providerId)}
           </div>
         </div>
 
@@ -106,12 +127,14 @@ export function AddLineDialog({ data, onAdd, onClose }: { data: EngineData; onAd
                 {insOk ? 'Plans this provider is credentialed for' : provider.accepts === 'Cash' ? 'This provider is cash only' : 'No plans on file for this provider'}
               </button>
             </div>
+            {staleNote('payment', !payType)}
           </div>
         )}
 
         {payType === 'insurance' && (
           <div>
             <span className="lbl2">Patient&apos;s plan</span>
+            {staleNote('plan', !subPlan)}
             <div className="plans" role="radiogroup" aria-label="Plan">
               {plans.map((p) => (
                 <button key={p.subPlan} type="button" role="radio" aria-checked={subPlan === p.subPlan} className={`plan-row${subPlan === p.subPlan ? ' sel' : ''}`} onClick={() => setSubPlan(p.subPlan)}>
@@ -199,11 +222,11 @@ export function AddLineDialog({ data, onAdd, onClose }: { data: EngineData; onAd
           <button type="button" className="btn sky" onClick={onClose}>
             Cancel
           </button>
-          <button type="button" className="btn" id="add-confirm" disabled={!result?.ok || !draft} onClick={() => draft && onAdd({ serviceName, input: draft })}>
-            Add to estimate
+          <button type="button" className="btn" id={editing ? 'save-confirm' : 'add-confirm'} disabled={!result?.ok || !draft} onClick={() => draft && onSave({ serviceName, input: draft })}>
+            {editing ? 'Save changes' : 'Add to estimate'}
           </button>
         </div>
       </div>
-    </div>
+    </Modal>
   );
 }

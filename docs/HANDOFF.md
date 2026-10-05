@@ -4,6 +4,18 @@ Written 2026-10-05 at the end of the first build session. Read this, then `DECIS
 
 Repo: `joman124/tcs-platform`. `main` contains everything through PR #2 (merge commit `8b8c54c`).
 
+## 0. Overnight session, 2026-10-05 (read first)
+
+Unattended work on branch `claude/kind-euler-50msb6`, PR https://github.com/joman124/tcs-platform/pull/5 (not merged). Full log: `docs/OVERNIGHT-LOG.md`. Tests went from 79 unit / 44 browser to **165 unit / 78 browser**.
+
+- **Edit a line** (user request): Edit next to Remove reopens the same dialog prefilled; saves in place; stale choices open empty with a note. **"Refresh data" now keeps and re-prices the estimate** instead of reloading the page (it used to drop the estimate silently).
+- **Release safety:** `vercel.json` stops automatic production deploys from `main` (**only once PR #5 is merged**). `next-auth` pinned to `5.0.0-beta.32`.
+- **Workbook version check:** an older workbook (e.g. no `Services` "Allowed tiers") is refused with a message naming the missing tab/column, instead of mispricing.
+- **`/diagnostics`** (signed-in only, absent in demo mode): settings by name, workbook row counts, log-list reachability (read only), load time. Real-data checklist: `docs/phase5-checklist.md`.
+- **Fee Schedule sync engine + dry-run diff** (`npm run fee-schedule-diff`, writes nothing): `docs/fee-schedule-sync.md`. **Finding:** the live sheet's data starts at **row 4**, not row 7; Phase 1 row numbers (and the workbook's visit and cash-price row keys) are 3 higher. Confirmed by reading the Billing Fee Schedule once, read-only: all 25 Phase 1 quarantines reproduce exactly.
+- **Setup guide:** `docs/SETUP-CHECKLIST.md` (fixes issue 9).
+- **Stretch:** 12-month log retention (built, **off**, no cron scheduled); dialog focus management; the e2e run no longer rewrites the sample PDF.
+
 ## 1. Where things stand
 
 The estimator is **built and tested on demo data, but not yet connected to real MHCA data**, and nothing has been intentionally released to production.
@@ -37,6 +49,9 @@ The estimator is **built and tested on demo data, but not yet connected to real 
 ## 3. What still needs doing
 
 ### Needs the user (in this order)
+
+Step-by-step guide with every known ID filled in: **[`docs/SETUP-CHECKLIST.md`](SETUP-CHECKLIST.md)** (fixes issue 9 below: no placeholder-only instructions).
+
 1. **Decide where the workbook and log list live.** Recommended: a **small dedicated SharePoint site** holding only the workbook and the log list. The CorporateDrive site contains files with patient names (caseload and candidate lists), and the app's site-level access grant would cover all of it. The user has saved copies at:
    - `CorporateDrive / Shared Documents / Admin / Claude / TCS-creator` (not yet found by search, may need time to index);
    - an earlier copy in their personal OneDrive (test only). Its IDs, found by search: drive `b!nlQsWChhb0u7Okr2aJHS7dpHN_y5RrBEqk_XYLQLvh32pBsOT1piS7JST3Bi-s2-`, item `01QUYAHRNQ2ZGYGXMELRBYJ5M45GSKWVBU`.
@@ -47,17 +62,19 @@ The estimator is **built and tested on demo data, but not yet connected to real 
 6. **Vercel variables** (Production and Preview, secrets as Sensitive): `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AUTH_SECRET`, `DIRECTORY_DRIVE_ID`, `DIRECTORY_ITEM_ID`, `LOG_SITE_ID`, `LOG_LIST_ID`. The user sets the secrets; they must never be pasted into chat. Redeploy afterward. Demo mode turns itself off once real settings exist.
 7. **Open Excel once** and confirm the workbook shows no errors (formulas were never recalculated here).
 8. Small answers: spelling of **Denish** Gusich (earlier "Denise"); postdoc first names; logo file (deferred).
+9. **New (2026-10-05): review and merge PR #5**, and answer its morning questions (`docs/OVERNIGHT-LOG.md`): keep "Refresh data" keeping the estimate; Fee Schedule row renumbering (−3 in the workbook, recommended); sync edge cases; whether to turn on log retention; replace the three real amounts in the demo data; who approves releases.
+10. **New:** for the Fee Schedule dry run, ask the MHCA admin for a **read** grant on the Billing site as well (in the admin message in `docs/SETUP-CHECKLIST.md` §5).
 
 ### Needs other people
 - **Billing:** which Medicare columns are the contracted rate; correct the 25 quarantined cells (`docs/phase1-fee-schedule-review.md`); update couples cash price to $225 in the Fee Schedule.
 - **MHCA admin:** the Sites.Selected grants and any site creation.
 
-### Next engineering
-1. Once data is connected: **point a preview at real data and run the Phase 5 checks** (the real Graph read, Entra sign-in, and SharePoint log write have never been exercised). Verification checklist is in the previous chat reply (Aetna PsyD individual $137.75; Dr. Lee cash $195; couples cash $225; Medicare blocked; one log row per printed line with no name).
-2. **Build the Fee Schedule sync.** `FeeRates` is still a manual snapshot. Layout facts needed: data rows start at sheet row 7; rate columns (doctoral / master's): Aetna N/P, UHC/Optum/UMR S/U, UHC Advantage X/Z, Cigna AB/AD, BCBS AG/AI, Medicare AM/AO (**ambiguous**) and AP/AQ (Medicare 2020), ACN/EHN/Intel AS/AT, TriWest AV/AX, AHCCCS AZ/BB, AZCH BD/BF, Allwell/Ambetter BI/BK (header misaligned); cash price column H; a visit is a parent row plus rows starting with `+`; add-on rows labelled "(optional)" are excluded by default; cells with text or errors are unusable; a cell more than 25% from the median for its CPT is quarantined.
+### Next engineering (state after 2026-10-05)
+1. **Still open; tooling ready.** `/diagnostics` and `docs/phase5-checklist.md` exist. Once data is connected: **point a preview at real data and run the Phase 5 checks** (the real Graph read, Entra sign-in, and SharePoint log write have never been exercised). Verification checklist is in the previous chat reply (Aetna PsyD individual $137.75; Dr. Lee cash $195; couples cash $225; Medicare blocked; one log row per printed line with no name).
+2. **Engine and dry-run diff built** (`src/sync/feeSchedule.ts`, `scripts/fee-schedule-diff.ts`, `docs/fee-schedule-sync.md`). Not built: writing synced rows to the workbook (needs the row-numbering decision and a write grant). Correction: data rows start at sheet row **4** (the "row 7" below is Phase 1 numbering). Original layout notes: data rows start at sheet row 7; rate columns (doctoral / master's): Aetna N/P, UHC/Optum/UMR S/U, UHC Advantage X/Z, Cigna AB/AD, BCBS AG/AI, Medicare AM/AO (**ambiguous**) and AP/AQ (Medicare 2020), ACN/EHN/Intel AS/AT, TriWest AV/AX, AHCCCS AZ/BB, AZCH BD/BF, Allwell/Ambetter BI/BK (header misaligned); cash price column H; a visit is a parent row plus rows starting with `+`; add-on rows labelled "(optional)" are excluded by default; cells with text or errors are unusable; a cell more than 25% from the median for its CPT is quarantined.
 3. **Figma:** build frame B (patient copy), the add-line modal, and visually re-check frame A. The Figma MCP is limited to 20 calls per month on the Starter plan and the limit was used up in October 2026. It resets monthly, or upgrade to a Full or Dev seat.
-4. **Production release** needs the user's explicit approval. Consider preventing automatic production deploys on `main` until then.
-5. Optional: automate pruning of log rows older than 12 months; `next-auth` is a beta (5.0.0-beta.32), worth pinning and re-checking before release.
+4. **Production release** needs the user's explicit approval. Automatic production deploys from `main` are turned off by `vercel.json` once PR #5 merges.
+5. Log pruning: **built, off by default** (`docs/estimate-log-sharepoint.md` says how to turn it on). `next-auth`: **pinned** to 5.0.0-beta.32; re-check before release. New: `npm audit` flags PostCSS inside Next (fix is Next 16, a major upgrade).
 
 ## 4. Issues and mistakes from this session
 
@@ -77,7 +94,7 @@ The estimator is **built and tested on demo data, but not yet connected to real 
 
 ## 5. Where everything lives
 
-- **Code:** `src/engine` (rules), `src/data` (workbook loader, Graph, log), `app` and `components` (UI), `tests` (79 unit tests), `e2e/run.mjs` (44 browser checks), `docs/` (engine, log spec, design source, review list, sample PDF), `.env.example`.
+- **Code:** `src/engine` (rules), `src/data` (workbook loader and version check, Graph, log, diagnostics, retention), `src/sync` (Fee Schedule sync and diff), `scripts/fee-schedule-diff.ts`, `app` and `components` (UI), `tests` (165 unit tests), `e2e/run.mjs` (78 browser checks), `docs/` (engine, log spec, design source, review list, sample PDF), `.env.example`.
 - **Not in git:** `MHCA-Provider-Directory.xlsx` (gitignored); `tests/real.local.test.ts` (local only, needs a dump of the real workbook).
 - **Commands:** `npm test`, `npm run typecheck`, `npm run build && npm run e2e`, `DEMO_MODE=1 AUTH_SECRET=x npm run dev`. Chromium for e2e: `/opt/pw-browsers/chromium-1194/chrome-linux/chrome`.
 - **Vercel:** team "joman124's projects" (`team_FtOIUGtMDIHuEEU6FhWqbzOB`), project `mhca-estimator` (`prj_KSedFjI4PAgnMJ6r568WZV7TJGff`), production alias `mhca-estimator.vercel.app`. Previews sit behind Vercel login.

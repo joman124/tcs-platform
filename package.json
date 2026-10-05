@@ -2,7 +2,7 @@
   "name": "mhca-estimator",
   "version": "0.1.0",
   "private": true,
-  "description": "MHCA Treatment Plan Estimator: pricing and rules engine (UI not yet built)",
+  "description": "MHCA Treatment Plan Estimator: Next.js app (Microsoft sign-in, Graph reads of the provider directory, print copy, de-identified log) and its pricing and rules engine",
   "type": "module",
   "scripts": {
     "dev": "next dev",
@@ -10,7 +10,8 @@
     "start": "next start",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "e2e": "node e2e/run.mjs"
+    "e2e": "node e2e/run.mjs",
+    "fee-schedule-diff": "vite-node scripts/fee-schedule-diff.ts"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",
@@ -18,11 +19,12 @@
     "@types/react-dom": "^19.3.0",
     "playwright": "^1.63.0",
     "typescript": "^5.6.0",
+    "vite-node": "^2.1.9",
     "vitest": "^2.1.0"
   },
   "dependencies": {
     "next": "^15.5.27",
-    "next-auth": "^5.0.0-beta.32",
+    "next-auth": "5.0.0-beta.32",
     "react": "^19.3.0",
     "react-dom": "^19.3.0"
   },

@@ -14,6 +14,8 @@ The estimate (including the patient name) lives only in browser memory. Nothing 
 
 ## Setup
 
+**Step-by-step, copy-paste guide: [`docs/SETUP-CHECKLIST.md`](docs/SETUP-CHECKLIST.md)** (Graph Explorer requests with the known IDs filled in, the message for the MHCA admin, and the Vercel variables). Then verify with [`docs/phase5-checklist.md`](docs/phase5-checklist.md). In short:
+
 1. Register an Entra app in the MHCA tenant (single tenant). Add the redirect URI `https://<domain>/api/auth/callback/microsoft-entra-id`.
 2. Grant it application permission **Sites.Selected**, then give it **read** on the site holding the directory workbook and **write** on the site holding the log list (admin consent).
 3. Upload `MHCA-Provider-Directory.xlsx` to SharePoint and find its drive id and item id.
@@ -26,7 +28,7 @@ The estimate (including the patient name) lives only in browser memory. Nothing 
 npm install
 npm test            # unit tests (engine, workbook loader, log validation)
 npm run typecheck
-npm run build && npm run e2e   # browser tests against a build in demo mode (needs Chromium)
+npm run build && npm run e2e   # browser tests against a build in demo mode (needs Chromium; UPDATE_SAMPLE=1 also rewrites docs/samples/sample-patient-copy.pdf)
 DEMO_MODE=1 AUTH_SECRET=x npm run dev   # demo data, no sign-in
 ```
 

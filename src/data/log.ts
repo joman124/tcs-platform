@@ -37,3 +37,12 @@ export async function appendLogRows(rows: LogRowInput[]): Promise<void> {
     if (json.responses.some((x) => x.status >= 300)) throw new Error('Log write partially failed.');
   }
 }
+
+/** Read-only reachability check for the diagnostics page: GET the list's id. Returns the HTTP status. Never writes. */
+export async function readLogList(): Promise<number> {
+  const site = process.env.LOG_SITE_ID;
+  const list = process.env.LOG_LIST_ID;
+  if (!site || !list) throw new Error('Logging is not configured.');
+  const res = await graphFetch(`/sites/${site}/lists/${list}?$select=id`);
+  return res.status;
+}

@@ -1,10 +1,15 @@
 // End-to-end checks against a production build in demo mode (invented data). Run: npm run build && npm run e2e
 import { spawn, execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { chromium } from 'playwright';
+import { encode } from '@auth/core/jwt';
 
 const PORT = 3111;
 const BASE = `http://localhost:${PORT}`;
+// The committed sample (docs/samples) is only rewritten on request, so a test run leaves the working tree clean.
+const SAMPLE_PDF = process.env.UPDATE_SAMPLE === '1' ? 'docs/samples/sample-patient-copy.pdf' : join(tmpdir(), 'mhca-sample-patient-copy.pdf');
 const CHROME = process.env.CHROME_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const results = [];
 const ok = (name, cond, detail = '') => { results.push({ name, pass: !!cond, detail }); console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${cond ? '' : '  ' + detail}`); };
@@ -106,15 +111,15 @@ try {
       await confirmAdd(page);
     }
     ok('30 lines added', (await rowCount(page)) === 30);
-    mkdirSync('docs/samples', { recursive: true });
+    mkdirSync(dirname(SAMPLE_PDF), { recursive: true });
     const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
-    writeFileSync('docs/samples/sample-patient-copy.pdf', pdf);
-    const pages = Number(/Pages:\s+(\d+)/.exec(execFileSync('pdfinfo', ['docs/samples/sample-patient-copy.pdf']).toString())[1]);
+    writeFileSync(SAMPLE_PDF, pdf);
+    const pages = Number(/Pages:\s+(\d+)/.exec(execFileSync('pdfinfo', [SAMPLE_PDF]).toString())[1]);
     ok('30-line estimate spans more than one US Letter page', pages >= 2, `pages=${pages}`);
-    const size = /Page size:\s+([\d.]+) x ([\d.]+)/.exec(execFileSync('pdfinfo', ['docs/samples/sample-patient-copy.pdf']).toString());
+    const size = /Page size:\s+([\d.]+) x ([\d.]+)/.exec(execFileSync('pdfinfo', [SAMPLE_PDF]).toString());
     ok('PDF page size is US Letter (612 x 792 pt)', Math.abs(Number(size[1]) - 612) < 2 && Math.abs(Number(size[2]) - 792) < 2, size?.[0]);
     // no row split across pages: every row that starts on a page (service name at the left) has its amounts on the same line of the same page
-    const bbox = execFileSync('pdftotext', ['-bbox', 'docs/samples/sample-patient-copy.pdf', '-']).toString();
+    const bbox = execFileSync('pdftotext', ['-bbox', SAMPLE_PDF, '-']).toString();
     let split = false, headers = 0, rowsSeen = 0;
     for (const pg of bbox.split('<page ').slice(1)) {
       const words = [...pg.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)"[^>]*>([^<]*)<\/word>/g)].map((m) => ({ x: +m[1], y: +m[2], t: m[3] }));
@@ -184,9 +189,107 @@ try {
     ok('postdoc cash price is $195.00', (await page.locator('#rate-value').innerText()) === '$195.00');
     await ctx.close(); }
 
+  // 12. Edit a line after it has been added
+  const row = (page, i) => page.locator('tr[data-testid=line]').nth(i);
+  const editRow = async (page, i) => { await row(page, i).getByRole('button', { name: /^Edit / }).click(); await page.waitForSelector('[role=dialog][aria-label="Edit service"]'); };
+  const saveEdit = async (page) => { await page.click('#save-confirm'); await page.waitForSelector('#save-confirm', { state: 'detached' }); };
+  const rowText = async (page, i) => (await row(page, i).innerText()).replace(/\s+/g, ' ');
+  { const { ctx, page } = await newPage(); await page.goto(BASE);
+    await page.fill('#patient', 'Edit Patient');
+    await addLine(page, { service: 'Individual Counseling', provider: 'Casey Counselor, LPC', pay: 'Aetna Commercial Plans', a: '1', b: '4' }); await confirmAdd(page);
+    ok('edit: each row has an Edit button next to Remove', (await page.locator('button[aria-label="Edit Individual Counseling"]').count()) === 1 && (await page.locator('button[aria-label="Remove Individual Counseling"]').count()) === 1);
+    await editRow(page, 0);
+    const prefilled = { svc: await page.inputValue('#svc'), prov: await page.inputValue('#prov'), ins: await page.getAttribute('#pay-ins', 'aria-pressed'), plan: await page.getAttribute('button[role=radio]:has-text("Aetna Commercial Plans")', 'aria-checked'), f1: await page.inputValue('#f1'), f2: await page.inputValue('#f2') };
+    ok('edit: dialog is titled "Edit service" with a "Save changes" button', (await page.locator('.modal h2').innerText()) === 'Edit service' && (await page.locator('#save-confirm').innerText()) === 'Save changes');
+    ok('edit: service, provider, payment, plan and frequency are prefilled', JSON.stringify(prefilled) === JSON.stringify({ svc: 'Individual Counseling', prov: 'D02', ins: 'true', plan: 'true', f1: '1', f2: '4' }), JSON.stringify(prefilled));
+    await page.selectOption('#prov', { label: 'Dana Doctoral, PsyD' });
+    ok('edit: changing the provider clears the payment choice', (await page.getAttribute('#pay-ins', 'aria-pressed')) === 'false' && (await page.locator('#save-confirm').isDisabled()));
+    await page.click('#pay-ins'); await page.click('button[role=radio]:has-text("Aetna Commercial Plans")');
+    await page.fill('#f1', '2'); await page.fill('#f2', '6');
+    await saveEdit(page);
+    ok('edit: provider and frequency change update the line total ($137.75 x 12 = $1,653.00)', (await rowCount(page)) === 1 && (await lineTotal(page, 0)) === '$1,653.00' && (await rowText(page, 0)).includes('Dana Doctoral'), await rowText(page, 0));
+    ok('edit: footer total and scheduling plan follow the edit', (await page.locator('#view-total').innerText()) === '$1,653.00' && (await page.locator('.foot .plan').innerText()).includes('Dana Doctoral · Individual Counseling · 2 times a week for 6 weeks'));
+    await page.click('button:has-text("Preview patient copy")');
+    const pv = await page.locator('.preview .paper').innerText();
+    ok('edit: preview shows the edited line', pv.includes('Dana Doctoral') && pv.includes('2 times a week for 6 weeks') && !pv.includes('Casey'));
+    await page.click('.preview-bar button:has-text("Close")');
+    const t = await printText(page);
+    ok('edit: print copy shows the edited values only', t.includes('Dana Doctoral') && t.includes('2 times a week for 6 weeks') && t.includes('$1,653.00') && !t.includes('Casey') && !t.includes('$413.24'), t);
+    // Cancel and Escape change nothing
+    await editRow(page, 0); await page.fill('#f1', '3'); await page.click('.dlg-actions button:has-text("Cancel")');
+    ok('edit: Cancel leaves the line exactly as it was', (await lineTotal(page, 0)) === '$1,653.00' && (await page.locator('[role=dialog]').count()) === 0);
+    await editRow(page, 0); await page.selectOption('#prov', { label: 'Dr. Resident, Postdoc' }); await page.keyboard.press('Escape');
+    ok('edit: Escape closes without saving', (await page.locator('[role=dialog]').count()) === 0 && (await rowText(page, 0)).includes('Dana Doctoral') && (await lineTotal(page, 0)) === '$1,653.00');
+    // Position among three lines
+    await addLine(page, { service: 'Couples Counseling', provider: 'Sam Second, LCSW', pay: 'cash', a: '1', b: '8' }); await confirmAdd(page);
+    await addLine(page, { service: 'Group Counseling', provider: 'Chris Cash, MA', pay: 'cash', a: '1', b: '10' }); await confirmAdd(page);
+    await editRow(page, 1); await page.fill('#f2', '5'); await saveEdit(page);
+    const order = [];
+    for (let i = 0; i < 3; i++) order.push((await row(page, i).locator('td').first().innerText()).trim());
+    ok('edit: the edited line keeps its position among three lines', order.join('|') === 'Individual Counseling|Couples Counseling|Group Counseling' && (await lineTotal(page, 1)) === '$1,125.00', `${order.join('|')} ${await lineTotal(page, 1)}`);
+    await row(page, 2).getByRole('button', { name: /^Remove / }).click();
+    ok('edit: Remove still works', (await rowCount(page)) === 2 && !(await page.locator('table[aria-label="Estimate lines"]').innerText()).includes('Group Counseling'));
+    await ctx.close(); }
+
+  // 13. Lines that go stale after "Refresh data" are fixed by editing them
+  { const { ctx, page } = await newPage(); await page.goto(BASE);
+    await page.fill('#patient', 'Stale Patient');
+    await addLine(page, { service: 'Individual Counseling', provider: 'Casey Counselor, LPC', pay: 'Aetna Commercial Plans', a: '1', b: '4' }); await confirmAdd(page);
+    await addLine(page, { service: 'Couples Counseling', provider: 'Sam Second, LCSW', pay: 'cash', a: '1', b: '8' }); await confirmAdd(page);
+    await ctx.addCookies([{ name: 'demo-scenario', value: 'after-refresh', url: BASE }]);
+    await page.click('button:has-text("Refresh data")');
+    await page.locator('tr.blocked').nth(1).waitFor({ timeout: 10000 });
+    ok('refresh data keeps the estimate and re-prices it', (await rowCount(page)) === 2 && (await page.inputValue('#patient')) === 'Stale Patient' && (await page.locator('tr.blocked').count()) === 2);
+    ok('blocked lines: printing is off and the message mentions editing', (await page.locator('#print').isDisabled()) && (await page.locator('.actions').innerText()).includes('Edit or remove blocked lines first.') && (await page.locator('p.attn[role=alert]').innerText()).includes('edited or removed'));
+    await editRow(page, 0);
+    ok('stale plan: opens with the plan empty and a note to choose it again', (await page.getAttribute('#pay-ins', 'aria-pressed')) === 'true' && (await page.locator('button[role=radio][aria-checked=true]').count()) === 0 && (await page.locator('[data-testid=stale-plan]').innerText()).includes('Aetna Commercial Plans'));
+    await page.click('#pay-cash');
+    ok('stale plan: the note goes once payment is chosen again', (await page.locator('[data-testid=stale-plan]').count()) === 0 && (await page.inputValue('#f2')) === '4');
+    await saveEdit(page);
+    ok('blocked insurance line is fixed by editing it to cash ($195 x 4 = $780.00)', !(await row(page, 0).getAttribute('class')).includes('blocked') && (await lineTotal(page, 0)) === '$780.00' && (await rowText(page, 0)).includes('Cash'), await rowText(page, 0));
+    await editRow(page, 1);
+    ok('stale provider: opens with the provider empty and a note, nothing substituted', (await page.inputValue('#prov')) === '' && (await page.locator('[data-testid=stale-provider]').innerText()).includes('Sam Second') && (await page.locator('#save-confirm').isDisabled()));
+    await page.selectOption('#prov', { label: 'Casey Counselor, LPC' }); await page.click('#pay-cash'); await saveEdit(page);
+    ok('stale provider: choosing a new provider fixes the line and printing turns on', (await page.locator('tr.blocked').count()) === 0 && (await lineTotal(page, 1)) === '$1,800.00' && !(await page.locator('#print').isDisabled()), await lineTotal(page, 1));
+    await ctx.close(); }
+
+  // 15. Dialog accessibility: focus in on open, trapped while open, Escape closes, focus back to the trigger
+  { const { ctx, page } = await newPage(); await page.goto(BASE);
+    const active = () => page.evaluate(() => { const a = document.activeElement; return { id: a?.id ?? '', label: a?.getAttribute('aria-label') ?? '', text: (a?.textContent ?? '').trim().slice(0, 30), inDialog: !!a?.closest('[role=dialog]') }; });
+    await page.focus('#add-service'); await page.keyboard.press('Enter');
+    await page.waitForSelector('[role=dialog][aria-label="Add service"]');
+    ok('a11y: opening Add service moves focus to the first field', (await active()).id === 'svc', JSON.stringify(await active()));
+    let trapped = true;
+    for (let i = 0; i < 8; i++) { await page.keyboard.press('Tab'); if (!(await active()).inDialog) trapped = false; }
+    for (let i = 0; i < 8; i++) { await page.keyboard.press('Shift+Tab'); if (!(await active()).inDialog) trapped = false; }
+    ok('a11y: Tab and Shift+Tab stay inside the dialog', trapped);
+    await page.focus('#svc'); await page.keyboard.press('Shift+Tab');
+    ok('a11y: Shift+Tab from the first control wraps to the last enabled one (Cancel; Add is disabled until priced)', (await active()).inDialog && (await active()).text === 'Cancel', JSON.stringify(await active()));
+    await page.keyboard.press('Escape');
+    ok('a11y: Escape closes and focus returns to "+ Add service"', (await page.locator('[role=dialog]').count()) === 0 && (await active()).id === 'add-service', JSON.stringify(await active()));
+    await addLine(page, { service: 'Individual Counseling', provider: 'Chris Cash, MA', pay: 'cash' }); await confirmAdd(page);
+    await page.locator('button[aria-label="Edit Individual Counseling"]').click();
+    ok('a11y: opening Edit moves focus into the dialog', (await active()).inDialog && (await active()).id === 'svc');
+    await page.fill('#f2', '6'); await page.click('#save-confirm');
+    ok('a11y: after Save, focus returns to the row\'s Edit button', (await active()).label === 'Edit Individual Counseling', JSON.stringify(await active()));
+    await page.click('button:has-text("Preview patient copy")');
+    ok('a11y: opening the preview moves focus into it', (await active()).inDialog);
+    let pTrapped = true;
+    for (let i = 0; i < 4; i++) { await page.keyboard.press('Tab'); if (!(await active()).inDialog) pTrapped = false; }
+    ok('a11y: focus is trapped in the preview', pTrapped);
+    await page.keyboard.press('Escape');
+    ok('a11y: Escape closes the preview and focus returns to its button', (await page.locator('[role=dialog]').count()) === 0 && (await active()).text === 'Preview patient copy', JSON.stringify(await active()));
+    await ctx.close(); }
+
+  // 14. The diagnostics page does not exist in demo mode (no sign-in there)
+  { const r = await fetch(`${BASE}/diagnostics`, { redirect: 'manual' });
+    ok('diagnostics: not found in demo mode', r.status === 404, String(r.status));
+    const ret = await fetch(`${BASE}/api/log-retention`, { redirect: 'manual', headers: { authorization: 'Bearer anything' } });
+    ok('log retention: does nothing in demo mode (404)', ret.status === 404, String(ret.status)); }
+
   // 11. Outside demo mode every page and API route requires an MHCA sign-in
   { const port2 = PORT + 1;
-    const prod = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-p', String(port2)], { env: { ...process.env, DEMO_MODE: '', AUTH_SECRET: 'local-test-secret', AZURE_TENANT_ID: '00000000-0000-0000-0000-000000000000', AZURE_CLIENT_ID: 'x', AZURE_CLIENT_SECRET: 'x' }, stdio: 'ignore', detached: true });
+    const prod = spawn(process.execPath, ['node_modules/next/dist/bin/next', 'start', '-p', String(port2)], { env: { ...process.env, DEMO_MODE: '', AUTH_SECRET: 'local-test-secret', AZURE_TENANT_ID: '00000000-0000-0000-0000-000000000000', AZURE_CLIENT_ID: 'client-id-for-e2e', AZURE_CLIENT_SECRET: 'secret-value-for-e2e', DIRECTORY_DRIVE_ID: '', DIRECTORY_ITEM_ID: '', LOG_SITE_ID: '', LOG_LIST_ID: '' }, stdio: 'ignore', detached: true });
     for (let i = 0; i < 60; i++) { try { await fetch(`http://localhost:${port2}/api/auth/providers`); break; } catch {} await new Promise((r) => setTimeout(r, 500)); }
     const page = await fetch(`http://localhost:${port2}/`, { redirect: 'manual' });
     ok('signed-out visitors are redirected to Microsoft sign-in', page.status >= 300 && page.status < 400 && (page.headers.get('location') ?? '').includes('/api/auth/signin'), `${page.status} ${page.headers.get('location')}`);
@@ -196,6 +299,16 @@ try {
     ok('refresh endpoint is not reachable signed out', refresh.status !== 200);
     const providers = await (await fetch(`http://localhost:${port2}/api/auth/providers`)).json();
     ok('only the Microsoft Entra provider is offered', Object.keys(providers).join() === 'microsoft-entra-id', Object.keys(providers).join());
+    const ret = await fetch(`http://localhost:${port2}/api/log-retention`, { redirect: 'manual' });
+    ok('log retention: off by default (404, no sign-in redirect for the cron route)', ret.status === 404, String(ret.status));
+    const diag = await fetch(`http://localhost:${port2}/diagnostics`, { redirect: 'manual' });
+    ok('diagnostics: signed-out visitors are redirected to sign-in', diag.status >= 300 && diag.status < 400 && (diag.headers.get('location') ?? '').includes('/api/auth/signin'), `${diag.status} ${diag.headers.get('location')}`);
+    // Signed in (a session minted with this server's test secret). No directory IDs are set, so nothing goes to the network.
+    const session = await encode({ token: { name: 'Test Admin', email: 'admin@example.test', sub: 'test-admin' }, secret: 'local-test-secret', salt: 'authjs.session-token' });
+    const signedIn = await fetch(`http://localhost:${port2}/diagnostics`, { redirect: 'manual', headers: { cookie: `authjs.session-token=${session}` } });
+    const html = await signedIn.text();
+    ok('diagnostics: signed in, lists settings by name and which are missing', signedIn.status === 200 && html.includes('AZURE_CLIENT_SECRET') && html.includes('DIRECTORY_ITEM_ID') && /Missing/.test(html) && /Present/.test(html), String(signedIn.status));
+    ok('diagnostics: never shows a setting value', !html.includes('secret-value-for-e2e') && !html.includes('local-test-secret') && !html.includes('client-id-for-e2e'));
     try { process.kill(-prod.pid, 'SIGTERM'); } catch {} }
 } finally {
   await browser.close(); stop();

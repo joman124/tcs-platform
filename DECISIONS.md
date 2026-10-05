@@ -128,3 +128,35 @@ User supplied the active roster, services per provider, and cash prices.
 - `DEMO_MODE=1` is set for the **Preview** environment only (invented data, no sign-in, SAMPLE DATA watermark). Production has no env vars yet: it needs the Entra and directory settings from `.env.example`, set by the user in Vercel.
 - The first deployment was created from the feature branch but Vercel promoted it to the project's production alias (`mhca-estimator.vercel.app`) because the project had no production deployment. With no Entra settings it shows a configuration error and serves no data. **Nothing has been intentionally released to production; production release still needs the user's approval.**
 - Redirect URI to register in Entra for the stable domain: `https://mhca-estimator.vercel.app/api/auth/callback/microsoft-entra-id` (preview URLs change per deployment, so sign-in for real data should run on a stable domain).
+
+## Overnight session (2026-10-05)
+
+### Editing a line (user request)
+- Each estimate row has **Edit** next to Remove. Edit reuses the add-a-line dialog in edit mode ("Edit service", "Save changes"), prefilled from the line; Save replaces the line in place (same position), Cancel or Escape leaves it untouched. Changing the service or provider while editing still clears the fields that depend on them.
+- A saved choice the current data no longer offers (service inactive, provider gone or no longer offering the service, payment type no longer accepted, plan no longer listed) opens **empty with a note** to choose it again. Nothing is silently substituted. A choice that is still offered but blocked (e.g. an out-of-network plan) stays selected so the admin sees the reason and can switch.
+- Blocked lines are editable; the admin messages now say "edit or remove".
+- **"Refresh data" now keeps the estimate** (`router.refresh()` instead of a full page reload) and re-prices every line against the new data, so lines that became invalid show as blocked and can be fixed by editing. Before, refresh reloaded the page, which silently discarded the estimate. The estimate is still memory-only. Re-pricing after a refresh also counts as "not yet logged". (Assumption, reversible; listed in the morning questions.)
+- Demo mode has an invented "after refresh" scenario (a provider made inactive, a credentialing row dropped) that the browser tests select with a `demo-scenario` cookie. The app never sets that cookie, and it is ignored outside demo mode.
+
+### Release safety
+- `vercel.json` sets `git.deploymentEnabled.main = false`, so a merge or push to `main` no longer creates an automatic production deployment. It takes effect only once this file is on `main`. Feature-branch previews are unaffected. A release then needs a deliberate deployment (Vercel dashboard "Redeploy"/"Promote", or `vercel --prod`) after the user approves it. Vercel project settings were not changed.
+- `next-auth` is pinned to exactly `5.0.0-beta.32` (it is a beta; upgrade deliberately and re-test sign-in).
+- `npm audit --omit=dev` reports PostCSS inside `next` (build-time CSS processing of our own stylesheet, not exposed to user input). The fix is a major upgrade to Next 16; not done overnight, listed in the morning questions.
+
+### Workbook version check
+- When the directory workbook loads, every tab and column header the app reads must be present (`REQUIRED_COLUMNS` in `src/data/workbook.ts`). If any is missing, nothing is priced: the app shows "This directory workbook is an older build: the Services tab has no 'Allowed tiers' column. ..." naming each missing tab and column. Some columns are matched by prefix because the real headers carry hints such as "(Y/N)". Extra tabs and columns are ignored. The formula-driven `ContractedRates` tab is still not read, so nothing depends on Excel recalculation.
+- The Graph read lists the workbook's tabs first, reads only those that exist, and reports a missing workbook (wrong IDs or not shared) separately from a missing tab.
+
+### Readiness page
+- `/diagnostics` (signed-in MHCA accounts only; returns 404 in demo mode, where there is no sign-in) shows which settings are present **by name only**, whether the workbook can be read through Graph with a row count per tab and the version check, whether the log list can be read (a GET of the list; it never writes), and when the directory data in use was loaded. It is not linked from the estimator; the Phase 5 checklist (`docs/phase5-checklist.md`) points to it.
+
+### Fee Schedule sync (engine and dry run only)
+- `src/sync/feeSchedule.ts` turns the "Fee Schedule" tab into `FeeRates` and `CashPrices` rows plus a review report; `scripts/fee-schedule-diff.ts` prints a dry-run diff against the current `FeeRates` tab. Nothing writes. Details: `docs/fee-schedule-sync.md`.
+- **Row numbering (finding):** the live sheet's data starts at row 4, not row 7. Phase 1's row numbers (and so the current workbook's visit and cash-price rows) are 3 higher than the sheet. The sync numbers rows from the sheet; the diff detects the offset and warns. Renumbering is a user decision before any write.
+- Assumptions: parents with no code or a non-CPT code have no rate of their own and anchor their `+` rows (a code-less row only when `+` rows follow); an unlabelled CPT row under a visit belongs to it; "(optional)" add-ons are kept in `FeeRates` with the optional flag (the engine already leaves them out by default) rather than dropped; add-on rows with notes such as "(on hold)" are included and listed; numbers stored as text are unusable by default; `$0` is unusable; the quarantine median is per CPT, payer and tier (this reproduces all 25 Phase 1 quarantines exactly).
+
+### Log retention (built, off)
+- Pruning of log rows older than 12 months exists (`src/data/retention.ts`, `GET /api/log-retention`) but is off unless `LOG_RETENTION_ENABLED=1`, does nothing in demo mode, and requires Vercel Cron's `CRON_SECRET` bearer token. No cron schedule is configured; turning it on is the user's call (`docs/estimate-log-sharepoint.md`).
+
+### Dialog accessibility
+- The add/edit dialog and the patient-copy preview share a `Modal` shell (`components/Modal.tsx`): focus moves to the first control on open, Tab and Shift+Tab stay inside, Escape closes, and focus returns to the button that opened it.

@@ -17,4 +17,5 @@ export default function middleware(req: NextRequest, ev: NextFetchEvent) {
   return (guarded as unknown as (r: NextRequest, e: NextFetchEvent) => Response | Promise<Response>)(req, ev);
 }
 
-export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico|api/auth).*)'] };
+// api/log-retention is a cron endpoint with no user session; it checks CRON_SECRET itself (src/data/retention.ts).
+export const config = { matcher: ['/((?!_next/static|_next/image|favicon.ico|api/auth|api/log-retention).*)'] };
