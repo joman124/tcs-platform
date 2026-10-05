@@ -1,11 +1,15 @@
 // End-to-end checks against a production build in demo mode (invented data). Run: npm run build && npm run e2e
 import { spawn, execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join } from 'node:path';
 import { chromium } from 'playwright';
 import { encode } from '@auth/core/jwt';
 
 const PORT = 3111;
 const BASE = `http://localhost:${PORT}`;
+// The committed sample (docs/samples) is only rewritten on request, so a test run leaves the working tree clean.
+const SAMPLE_PDF = process.env.UPDATE_SAMPLE === '1' ? 'docs/samples/sample-patient-copy.pdf' : join(tmpdir(), 'mhca-sample-patient-copy.pdf');
 const CHROME = process.env.CHROME_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const results = [];
 const ok = (name, cond, detail = '') => { results.push({ name, pass: !!cond, detail }); console.log(`${cond ? 'PASS' : 'FAIL'}  ${name}${cond ? '' : '  ' + detail}`); };
@@ -107,15 +111,15 @@ try {
       await confirmAdd(page);
     }
     ok('30 lines added', (await rowCount(page)) === 30);
-    mkdirSync('docs/samples', { recursive: true });
+    mkdirSync(dirname(SAMPLE_PDF), { recursive: true });
     const pdf = await page.pdf({ preferCSSPageSize: true, printBackground: true });
-    writeFileSync('docs/samples/sample-patient-copy.pdf', pdf);
-    const pages = Number(/Pages:\s+(\d+)/.exec(execFileSync('pdfinfo', ['docs/samples/sample-patient-copy.pdf']).toString())[1]);
+    writeFileSync(SAMPLE_PDF, pdf);
+    const pages = Number(/Pages:\s+(\d+)/.exec(execFileSync('pdfinfo', [SAMPLE_PDF]).toString())[1]);
     ok('30-line estimate spans more than one US Letter page', pages >= 2, `pages=${pages}`);
-    const size = /Page size:\s+([\d.]+) x ([\d.]+)/.exec(execFileSync('pdfinfo', ['docs/samples/sample-patient-copy.pdf']).toString());
+    const size = /Page size:\s+([\d.]+) x ([\d.]+)/.exec(execFileSync('pdfinfo', [SAMPLE_PDF]).toString());
     ok('PDF page size is US Letter (612 x 792 pt)', Math.abs(Number(size[1]) - 612) < 2 && Math.abs(Number(size[2]) - 792) < 2, size?.[0]);
     // no row split across pages: every row that starts on a page (service name at the left) has its amounts on the same line of the same page
-    const bbox = execFileSync('pdftotext', ['-bbox', 'docs/samples/sample-patient-copy.pdf', '-']).toString();
+    const bbox = execFileSync('pdftotext', ['-bbox', SAMPLE_PDF, '-']).toString();
     let split = false, headers = 0, rowsSeen = 0;
     for (const pg of bbox.split('<page ').slice(1)) {
       const words = [...pg.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)"[^>]*>([^<]*)<\/word>/g)].map((m) => ({ x: +m[1], y: +m[2], t: m[3] }));

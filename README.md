@@ -28,7 +28,7 @@ The estimate (including the patient name) lives only in browser memory. Nothing 
 npm install
 npm test            # unit tests (engine, workbook loader, log validation)
 npm run typecheck
-npm run build && npm run e2e   # browser tests against a build in demo mode (needs Chromium)
+npm run build && npm run e2e   # browser tests against a build in demo mode (needs Chromium; UPDATE_SAMPLE=1 also rewrites docs/samples/sample-patient-copy.pdf)
 DEMO_MODE=1 AUTH_SECRET=x npm run dev   # demo data, no sign-in
 ```
 
