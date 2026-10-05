@@ -178,3 +178,6 @@ Still open from the overnight questions: how the sync treats code-less Neurofeed
 - Production (`mhca-estimator.vercel.app`) runs a build of `main` at `9a91af3` with **no environment variables**, so Auth.js threw `MissingSecret` (HTTP 500) on every request. Not related to the Next.js version.
 - Code change: when any sign-in setting (`AUTH_SECRET`, `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`) is missing outside demo mode, every page and API route answers 503 with a plain "Estimator is not set up yet" message (no setting names, no data). With the settings present, sign-in works exactly as before.
 - The real fix is the user's: set the Production variables (`docs/SETUP-CHECKLIST.md` §6) and redeploy production deliberately (`main` no longer deploys automatically).
+
+### Next.js 16 (2026-10-05)
+- Upgraded to `next` 16.3.8 to clear the PostCSS advisory (`npm audit --omit=dev` now clean). `middleware.ts` is now `proxy.ts`. Details and remaining steps: `docs/next16-upgrade-plan.md`. Release still needs the user's approval and one real sign-in check.
