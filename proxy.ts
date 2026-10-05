@@ -12,7 +12,7 @@ const guarded = auth((req) => {
   return NextResponse.next();
 });
 
-export default function middleware(req: NextRequest, ev: NextFetchEvent) {
+export default function proxy(req: NextRequest, ev: NextFetchEvent) {
   if (isDemoMode()) return NextResponse.next();
   // Without sign-in settings Auth.js throws on every request (a 500); say plainly that setup is unfinished instead.
   if (!authConfigured()) return notConfiguredResponse(req.nextUrl.pathname);

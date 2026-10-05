@@ -30,7 +30,7 @@ Decided 2026-10-03: rows are kept 12 months; view access is billing leadership o
 Automatic pruning is built but **off by default** (`src/data/retention.ts`, route `GET /api/log-retention`):
 
 - Runs only when `LOG_RETENTION_ENABLED=1` and the log settings exist; never in demo mode. Otherwise the route answers 404.
-- Needs `Authorization: Bearer $CRON_SECRET` (Vercel Cron sends this automatically when the project has a `CRON_SECRET` variable). The route is outside the sign-in middleware because a cron call has no user session.
+- Needs `Authorization: Bearer $CRON_SECRET` (Vercel Cron sends this automatically when the project has a `CRON_SECRET` variable). The route is outside the sign-in proxy (`proxy.ts`) because a cron call has no user session.
 - Deletes list items whose `EstimateDate` is before the same date 12 months ago (filtered on the indexed column, then re-checked per row; a row without a valid date is never deleted). At most 2,000 per run; `?dryRun=1` only counts.
 - Uses the app's existing **write** grant on the log site.
 
