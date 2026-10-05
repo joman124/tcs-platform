@@ -173,3 +173,8 @@ User supplied the active roster, services per provider, and cash prices.
 | 28 | Next.js 16 upgrade (PostCSS advisory) | **Planned as a separate piece of work:** `docs/next16-upgrade-plan.md`. |
 
 Still open from the overnight questions: how the sync treats code-less Neurofeedback parents, the unlabelled KAP 90837 row, "(on hold)" add-ons and "(optional)" rows (`docs/fee-schedule-sync.md`).
+
+### Production server error (2026-10-05)
+- Production (`mhca-estimator.vercel.app`) runs a build of `main` at `9a91af3` with **no environment variables**, so Auth.js threw `MissingSecret` (HTTP 500) on every request. Not related to the Next.js version.
+- Code change: when any sign-in setting (`AUTH_SECRET`, `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`) is missing outside demo mode, every page and API route answers 503 with a plain "Estimator is not set up yet" message (no setting names, no data). With the settings present, sign-in works exactly as before.
+- The real fix is the user's: set the Production variables (`docs/SETUP-CHECKLIST.md` §6) and redeploy production deliberately (`main` no longer deploys automatically).
