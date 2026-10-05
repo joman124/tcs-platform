@@ -73,3 +73,17 @@ export const demoData: EngineData = {
     { payer: 'UHC/Optum/UMR', quarantined: false, stale: false },
   ],
 };
+
+/**
+ * DEMO DATA. The directory as it might look after "Refresh data": Sam Second has left (Inactive) and
+ * Casey Counselor's Aetna credentialing was dropped. Browser tests pick it with a `demo-scenario=after-refresh`
+ * cookie, which the app itself never sets. Only consulted in demo mode.
+ */
+export function demoScenario(name: string | undefined): EngineData {
+  if (name !== 'after-refresh') return demoData;
+  return {
+    ...demoData,
+    providers: demoData.providers.map((p) => (p.id === 'D06' ? { ...p, status: 'Inactive' as const } : p)),
+    credentialing: demoData.credentialing.filter((c) => !(c.providerId === 'D02' && c.payer === 'Aetna')),
+  };
+}

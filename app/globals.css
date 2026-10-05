@@ -117,3 +117,4 @@ select { width: 100%; font-size: 15px; padding: 9px 10px; border: 1px solid var(
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
 @media (max-width: 720px) { .steps, .pay, .freq { grid-template-columns: 1fr; } }
+.row-actions { white-space: nowrap; }

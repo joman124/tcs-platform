@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { AddLineDialog, type NewLine } from './AddLineDialog';
 import { PrintSheet, type PrintLine } from './PrintSheet';
 import { displayName, fmt, freqText, todayISO } from './format';
@@ -49,6 +50,7 @@ export function Estimator({
   const [lines, setLines] = useState<Line[]>([]);
   const [view, setView] = useState<CostView>('plan');
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<Line | null>(null);
   const [preview, setPreview] = useState(false);
   const [bar, setBar] = useState<null | 'printed' | 'new' | 'idle'>(null);
   const [logMsg, setLogMsg] = useState<string | null>(null);
@@ -56,6 +58,7 @@ export function Estimator({
   const [loaded, setLoaded] = useState(loadedAt);
   const logged = useRef(false);
   const idRef = useRef(0);
+  const router = useRouter();
 
   const results = useMemo(() => lines.map((l) => priceLine(l.input, data)), [lines, data]);
   const summary = useMemo(() => summarize(results), [results]);
@@ -73,15 +76,16 @@ export function Estimator({
     setLines([]);
     setView('plan');
     setAdding(false);
+    setEditing(null);
     setPreview(false);
     setLogMsg(null);
     logged.current = false;
   }, []);
 
-  // Any change to the estimate means it has not been logged yet.
+  // Any change to the estimate (adding, editing, removing, or re-pricing after "Refresh data") means it has not been logged yet.
   useEffect(() => {
     logged.current = false;
-  }, [lines]);
+  }, [lines, data]);
 
   // Auto-clear after 15 idle minutes.
   useEffect(() => {
@@ -131,7 +135,13 @@ export function Estimator({
     setAdding(false);
   };
 
-  const printReason = lines.length === 0 ? 'Add at least one service.' : summary.blockedCount > 0 ? 'Fix or remove blocked lines first.' : !patientName.trim() ? 'Enter the patient name.' : null;
+  // Replaces the line in place: same id, same position.
+  const saveEdit = (id: string, n: NewLine) => {
+    setLines((ls) => ls.map((l) => (l.id === id ? { id, ...n } : l)));
+    setEditing(null);
+  };
+
+  const printReason = lines.length === 0 ? 'Add at least one service.' : summary.blockedCount > 0 ? 'Edit or remove blocked lines first.' : !patientName.trim() ? 'Enter the patient name.' : null;
   const canPrint = printReason === null;
   const doPrint = () => {
     if (!canPrint) return;
@@ -146,8 +156,9 @@ export function Estimator({
       const j = (await r.json()) as { loadedAt?: number; error?: string };
       if (!r.ok) throw new Error(j.error ?? 'Refresh failed');
       setLoaded(j.loadedAt ?? Date.now());
-      setRefreshMsg('Refreshed. Reloading…');
-      window.location.reload();
+      // Re-renders with the new directory data but keeps the estimate in memory; lines re-price straight away.
+      router.refresh();
+      setRefreshMsg('Directory data refreshed. Lines were re-priced with the new data.');
     } catch (e) {
       setRefreshMsg(e instanceof Error ? e.message : 'Refresh failed');
     }
@@ -265,7 +276,10 @@ export function Estimator({
                         )}
                         {stale && <div className="note">{stale.message}</div>}
                       </td>
-                      <td>
+                      <td className="row-actions">
+                        <button type="button" className="link dark" aria-label={`Edit ${l.serviceName}`} onClick={() => setEditing(l)}>
+                          Edit
+                        </button>
                         <button type="button" className="link dark" aria-label={`Remove ${l.serviceName}`} onClick={() => setLines((ls) => ls.filter((x) => x.id !== l.id))}>
                           Remove
                         </button>
@@ -284,7 +298,7 @@ export function Estimator({
           </div>
           {summary.blockedCount > 0 && (
             <p className="attn" role="alert">
-              {summary.blockedCount} {summary.blockedCount === 1 ? 'line is' : 'lines are'} blocked. Blocked lines are left out of the totals, and printing stays off until they are fixed or removed.
+              {summary.blockedCount} {summary.blockedCount === 1 ? 'line is' : 'lines are'} blocked. Blocked lines are left out of the totals, and printing stays off until they are edited or removed.
             </p>
           )}
         </main>
@@ -325,7 +339,8 @@ export function Estimator({
           </div>
         </footer>
 
-        {adding && <AddLineDialog data={data} onAdd={addLine} onClose={() => setAdding(false)} />}
+        {adding && <AddLineDialog data={data} onSave={addLine} onClose={() => setAdding(false)} />}
+        {editing && <AddLineDialog key={editing.id} data={data} initial={editing} onSave={(n) => saveEdit(editing.id, n)} onClose={() => setEditing(null)} />}
         {preview && (
           <div className="overlay" role="dialog" aria-modal="true" aria-label="Patient copy preview">
             <div className="preview">

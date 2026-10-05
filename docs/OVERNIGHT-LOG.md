@@ -1,0 +1,31 @@
+# Overnight log, 2026-10-05
+
+Branch: `claude/kind-euler-50msb6` (assigned by the session; based on `main` at `9a91af3`). Read this first after any restart.
+
+Baseline before any change: `npm test` 79/79, `npm run typecheck` clean, `npm run build && npm run e2e` 44/44.
+
+## Done
+
+| Task | Commit | How it was verified |
+|---|---|---|
+| 1. Edit a line item | see `git log` ("Edit a line item in place") | Unit 79 → 93 (`tests/lineForm.test.ts`: both frequency kinds, cash and insurance, stale service/provider/payment/plan, demo scenario). Browser 44 → 63 (section 12: prefill, provider + frequency edit changes totals, footer plan, preview, print copy, Cancel, Escape, position among three lines, Remove; section 13: refresh keeps and re-prices the estimate, blocked-line messages, stale plan fixed by editing to cash, stale provider shown empty with a note). Typecheck clean. Design source rendered in Chromium (no script errors, Edit next to Remove on all 5 rows). |
+
+## In progress
+
+- Task 2: release safety.
+
+## Blocked / skipped
+
+(none yet)
+
+## Questions for the morning
+
+1. **"Refresh data" now keeps the estimate** and re-prices it (it used to reload the page and silently drop the estimate). This made "a line goes stale after refresh, fix it by editing" possible at all. OK to keep? Reverting is one line in `components/Estimator.tsx` (`router.refresh()` back to `window.location.reload()`).
+
+## Needs the user
+
+(none new yet; the standing list is in `docs/HANDOFF.md` §3)
+
+## Notes
+
+- `npm run e2e` regenerates `docs/samples/sample-patient-copy.pdf` on every run (the date changes), so it is restored with `git checkout` after each run unless a change to the patient copy is intended.

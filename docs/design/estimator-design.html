@@ -63,6 +63,8 @@ tr.blocked .num { text-decoration: line-through; text-decoration-thickness: 1px;
 .seg button[aria-pressed="true"] { background: var(--navy); color: var(--stone); }
 .actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-left: auto; }
 .attn { font-size: 13px; color: var(--wine); max-width: 80ch; }
+.rowlinks { white-space: nowrap; }
+.rowlink { font: 400 14px var(--font); background: none; border: 0; padding: 0; margin-left: 8px; color: var(--navy); text-decoration: underline; cursor: pointer; }
 
 /* modal board */
 .modal { background: var(--white); border: 1px solid var(--navy); border-radius: 12px; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; max-width: 760px; margin-inline: auto; width: 100%; box-shadow: 0 10px 30px rgba(0,22,84,.25); }
@@ -204,7 +206,7 @@ select { width: 100%; font: 400 15px var(--font); padding: 9px 10px; border: 1px
 
   <div class="notes">
     <section><h2>On the patient copy</h2><ul><li>Service, provider, how often, per visit, total, estimated total, and the weekly, monthly and full-plan figures. Nothing else.</li><li>No CPT codes, add-on rows, plan or tier names, credentialing, warnings or buttons.</li><li>No disclaimer line (your call).</li><li>Rows never split across pages; the header repeats.</li></ul></section>
-    <section><h2>Admin-only</h2><ul><li>Status chips: ready, credentialing pending, blocked.</li><li>Blocked lines are left out of every total, and printing stays off until they are fixed or removed.</li><li>Out-of-network plans offer a switch to cash.</li></ul></section>
+    <section><h2>Admin-only</h2><ul><li>Status chips: ready, credentialing pending, blocked.</li><li>Blocked lines are left out of every total, and printing stays off until they are edited or removed.</li><li>Each row has Edit next to Remove. Edit reopens the add-a-line dialog titled "Edit service", prefilled from the line, with "Save changes"; saving replaces the line in place. A saved choice that is no longer offered starts empty with a note to choose it again.</li><li>Out-of-network plans offer a switch to cash.</li></ul></section>
     <section><h2>Assumptions to confirm</h2><ul><li>The wordmark is text until the logo file arrives.</li><li>Brand type is Gill Sans; this page shows Cabin where Gill Sans is missing.</li><li>Monthly = weekly × 52 ÷ 12. One-time services count only in the full plan.</li></ul></section>
   </div>
 </div>
@@ -240,10 +242,10 @@ select { width: 100%; font: 400 15px var(--font); padding: 9px 10px; border: 1px
   }
   function render() {
     var s = calc();
-    var tb = '<thead><tr><th>Service</th><th>Provider</th><th>Payment</th><th>How often</th><th class="num">Per visit</th><th class="num" id="th-v"></th><th>Status</th></tr></thead><tbody>';
+    var tb = '<thead><tr><th>Service</th><th>Provider</th><th>Payment</th><th>How often</th><th class="num">Per visit</th><th class="num" id="th-v"></th><th>Status</th><th></th></tr></thead><tbody>';
     LINES.forEach(function (l) {
       var v = lineVal(l, view);
-      tb += '<tr class="' + (l.status === 'bad' ? 'blocked' : '') + '"><td>' + l.svc + '</td><td>' + l.prov + '</td><td>' + l.pay + '</td><td>' + l.freq + '</td><td class="num">' + (l.per === null ? '—' : fmt(l.per)) + '</td><td class="num">' + (v === null ? (l.status === 'bad' ? '—' : 'one time') : fmt(v)) + '</td><td><span class="chip ' + (l.status === 'bad' ? 'bad' : l.status === 'warn' ? 'warn' : 'ok') + '">' + l.chip + '</span></td></tr>';
+      tb += '<tr class="' + (l.status === 'bad' ? 'blocked' : '') + '"><td>' + l.svc + '</td><td>' + l.prov + '</td><td>' + l.pay + '</td><td>' + l.freq + '</td><td class="num">' + (l.per === null ? '—' : fmt(l.per)) + '</td><td class="num">' + (v === null ? (l.status === 'bad' ? '—' : 'one time') : fmt(v)) + '</td><td><span class="chip ' + (l.status === 'bad' ? 'bad' : l.status === 'warn' ? 'warn' : 'ok') + '">' + l.chip + '</span></td><td class="rowlinks"><button type="button" class="rowlink" aria-label="Edit ' + l.svc + '">Edit</button><button type="button" class="rowlink" aria-label="Remove ' + l.svc + '">Remove</button></td></tr>';
     });
     $('lines').innerHTML = tb + '</tbody>';
     $('th-v').textContent = view === 'plan' ? 'Line total' : (view === 'weekly' ? 'Per week' : 'Per month');
@@ -253,7 +255,7 @@ select { width: 100%; font: 400 15px var(--font); padding: 9px 10px; border: 1px
         var plan = '';
     LINES.forEach(function (l) { if (l.status !== 'bad') plan += '<div class="row">' + l.prov.split(',')[0] + ' · ' + l.svc + ' · ' + l.freq.replace(' sessions', '') + '</div>'; });
     $('plan').innerHTML = plan;
-    $('attn').textContent = s.blocked ? ('Attention: ' + s.blocked + ' line is blocked (LPC providers cannot bill Medicare). Blocked lines are left out of the totals and printing is off until it is removed or switched.') : '';
+    $('attn').textContent = s.blocked ? ('Attention: ' + s.blocked + ' line is blocked (LPC providers cannot bill Medicare). Blocked lines are left out of the totals and printing is off until it is edited or removed.') : '';
     $('printbtn').disabled = s.blocked > 0;
     document.querySelectorAll('.seg button[data-view]').forEach(function (b) { b.setAttribute('aria-pressed', String(b.dataset.view === view)); });
     renderPaper(s);
