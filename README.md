@@ -6,6 +6,7 @@ An administrator builds a patient's treatment-plan cost estimate, then prints a 
 - **Data** (`src/data`): reads the provider directory workbook from SharePoint through Microsoft Graph (server-side, read-only, 5-minute cache plus a "Refresh data" button), and writes de-identified log rows to a SharePoint list.
 - **App** (`app`, `components`): Next.js. Microsoft sign-in restricted to the MHCA tenant.
 - **Decisions and assumptions**: `DECISIONS.md`.
+- **Session handoff** (status, open items, issues, where things live): `docs/HANDOFF.md`.
 
 ## Privacy
 
