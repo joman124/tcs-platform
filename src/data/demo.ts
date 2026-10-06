@@ -26,6 +26,8 @@ export const demoData: EngineData = {
     { providerId: 'D06', serviceId: 'S-IND-M' },
     { providerId: 'D06', serviceId: 'S-CPL' },
     { providerId: 'D07', serviceId: 'S-IND-D' },
+    { providerId: 'D01', serviceId: 'S-TMS' },
+    { providerId: 'D01', serviceId: 'S-IOP' },
   ],
   services: [
     { id: 'S-IND-M', name: 'Individual Counseling', active: true, perSession: true, cashPrice: 195, cashStatus: 'ok', allowedTiers: ['T2'] },
@@ -34,6 +36,9 @@ export const demoData: EngineData = {
     { id: 'S-GRP', name: 'Group Counseling', active: true, perSession: true, cashPrice: 80, cashStatus: 'ok' },
     { id: 'S-MM', name: 'Medication Management', active: true, perSession: true, cashPrice: 175, cashStatus: 'ok' },
     { id: 'S-ADHD', name: 'ADHD Evaluation', active: true, perSession: false, cashPrice: 1800, cashStatus: 'ok' },
+    // Switched off in the workbook. TMS has an insurance rate, so it is still offered; IOP has none, so it stays hidden.
+    { id: 'S-TMS', name: 'TMS Session', active: false, perSession: true, cashPrice: 300, cashStatus: 'ok' },
+    { id: 'S-IOP', name: 'Intensive Outpatient Program', active: false, perSession: false, cashPrice: null, cashStatus: 'blank' },
   ],
   rates: [
     { serviceId: 'S-IND-M', payer: 'Aetna', tier: 'T2', total: 103.31, status: 'OK' },
@@ -48,6 +53,7 @@ export const demoData: EngineData = {
     { serviceId: 'S-MM', payer: 'Aetna', tier: 'T2', total: 83.65, status: 'OK' },
     { serviceId: 'S-ADHD', payer: 'Aetna', tier: 'T1', total: 875.03, status: 'OK' },
     { serviceId: 'S-ADHD', payer: 'Aetna', tier: 'T2', total: 0, status: 'No contracted rate - offer cash' },
+    { serviceId: 'S-TMS', payer: 'Aetna', tier: 'T1', total: 210.5, status: 'OK' },
   ],
   credentialing: [
     { providerId: 'D01', payer: 'Aetna', status: 'Credentialed' },

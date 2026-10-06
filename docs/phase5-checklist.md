@@ -11,13 +11,18 @@ Tick each box and write down anything that differs from the expected value.
 1. [ ] Open `https://<domain>/diagnostics` signed out. **Expected:** you are sent to Microsoft sign-in.
 2. [ ] Sign in with an MHCA account. **Expected:** the readiness page opens.
    - [ ] Settings: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AUTH_SECRET`, `DIRECTORY_DRIVE_ID`, `DIRECTORY_ITEM_ID` all say **Present**; `LOG_SITE_ID` and `LOG_LIST_ID` say **Present** (logging on). No value is shown anywhere.
-   - [ ] Directory workbook: **OK**. Every tab has a row count (none "missing"). Roughly: Providers 35, ProviderServices 126, Services 31. "Parsed: … providers, … services, … plans" appears with no error.
+   - [ ] Directory workbook: **OK**. Every tab has a row count (none "missing"). Roughly: Providers 35, ProviderServices 126, Services 31. "Parsed with live Fee Schedule rates: … providers, … services (… offered in the picker), … plans" appears with no error. If it says the row numbers are "3 higher", the workbook was not renumbered (setup checklist step 3.2).
+   - [ ] Fee Schedule (live rates): **OK**. Header row 1, data from row 4; about 42 visits; no "payers with no Fee Schedule column". If it says the app cannot read the Fee Schedule, the Billing-site read grant is missing (setup checklist step 5).
    - [ ] If it says "This directory workbook is an older build: …", the uploaded copy is out of date (usually no `Services` "Allowed tiers" column). Replace it with the latest build and reload. Do not continue until this is OK.
    - [ ] Estimate log list: **OK** ("Readable (HTTP 200)"). This check only reads.
    - [ ] Loaded data: a time within the last few minutes, source `sharepoint`.
 3. [ ] Sign in with an account from another tenant (a personal Microsoft account). **Expected:** sign-in is refused.
 
 ## B. Prices (cross-check each against the Fee Schedule)
+
+Rates and cash prices are read live from the Billing Fee Schedule.
+
+0. [ ] Open "+ Add service". **Expected:** the service list holds every service on the workbook's Services tab that is billable to insurance (about 30), including TMS and Treatment Consult, plus any cash-only service switched on in the workbook.
 
 For each line: open the estimator, choose "+ Add service", pick the service and provider, then the payment. Read "Rate per visit" in the dialog.
 

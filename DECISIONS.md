@@ -184,3 +184,10 @@ Still open from the overnight questions: how the sync treats code-less Neurofeed
 
 ### Test tooling (2026-10-05)
 - `vitest` 2 → 5.0.3 (with `vite` 8.3.2) to clear the dev-only vite/esbuild advisories; `vite-node` replaced by `tsx` as the runner for `npm run fee-schedule-diff`. `npm audit` is clean for all dependencies. Local test runs need Node 22.12+; the app's own requirement stays `>=20.9`.
+
+## User answers (2026-10-06)
+
+| # | Topic | Decision |
+|---|---|---|
+| 29 | Services offered | **Every service on the Services tab that is billable to insurance** (at least one usable contracted rate; Medicare and quarantined cells do not count) is offered, whatever its "Active in estimator" flag, plus services switched on in the workbook (e.g. cash-only). This brings back TMS and Treatment Consult (supersedes decision 6 for TMS). |
+| 30 | Rate source | **Rates and cash prices are read live from the Billing Fee Schedule** (read-only) at each data load, through the sync engine; the workbook's `FeeRates`/`CashPrices` tabs are no longer used for amounts. The loader refuses (shows "not ready") if the workbook is not renumbered or points at rows that are not visits. Requires a read grant on the Billing site. |

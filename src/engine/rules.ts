@@ -65,9 +65,28 @@ export function resolveFrequency(freq: Frequency): Sessions | { error: Issue } {
   return { sessions: freq.sessions, spanWeeks: freq.spanWeeks ?? null, issues };
 }
 
-/** Services listed in the dropdown: one entry per active patient-facing name. */
+// Billable service IDs per rates array, so the pickers do not rescan every rate on each render.
+const billableCache = new WeakMap<EngineData['rates'], Set<string>>();
+
+/** At least one usable contracted rate for some payer and tier. Quarantined payers (Medicare) and unusable cells do not count. */
+export function insuranceBillable(service: Service, data: EngineData): boolean {
+  let ids = billableCache.get(data.rates);
+  if (!ids) {
+    ids = new Set(data.rates.filter((r) => r.status === 'OK' && r.total > 0).map((r) => r.serviceId));
+    billableCache.set(data.rates, ids);
+  }
+  return ids.has(service.id);
+}
+
+/**
+ * Offered in the estimator: every service billable to insurance, whatever its "Active in estimator" flag, plus services
+ * switched on in the workbook (e.g. cash-only ones). User decision 2026-10-06.
+ */
+export const isOffered = (service: Service, data: EngineData): boolean => service.active || insuranceBillable(service, data);
+
+/** Services listed in the dropdown: one entry per offered patient-facing name. */
 export function serviceNames(data: EngineData): string[] {
-  return [...new Set(data.services.filter((s) => s.active).map((s) => s.name))].sort();
+  return [...new Set(data.services.filter((s) => isOffered(s, data)).map((s) => s.name))].sort();
 }
 
 /**
@@ -78,7 +97,7 @@ export function resolveService(name: string, provider: Provider, data: EngineDat
   const tier = tierOf(provider.credential);
   return data.services.find(
     (s) =>
-      s.active &&
+      isOffered(s, data) &&
       s.name === name &&
       (!s.allowedTiers || (tier !== null && s.allowedTiers.includes(tier))) &&
       data.providerServices.some((ps) => ps.providerId === provider.id && ps.serviceId === s.id),
@@ -127,7 +146,7 @@ export function priceLine(input: LineInput, data: EngineData): LineResult {
   }
   const service = data.services.find((s) => s.id === input.serviceId);
   if (!service) return blocked([block('unknown-service', 'Service not found.')]);
-  if (!service.active) return blocked([block('service-inactive', 'Service is not active in the estimator.')]);
+  if (!isOffered(service, data)) return blocked([block('service-inactive', 'Service is not active in the estimator and has no insurance rate.')]);
   if (!data.providerServices.some((ps) => ps.providerId === provider.id && ps.serviceId === service.id)) {
     return blocked([block('not-offered', 'This provider does not offer this service.')]);
   }

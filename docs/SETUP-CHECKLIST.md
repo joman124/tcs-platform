@@ -153,14 +153,14 @@ You said an MHCA admin already gave consent; this step confirms exactly what is 
 >    ```
 >
 >    or in PnP PowerShell: `Grant-PnPAzureADAppSitePermission -AppId <APPLICATION (CLIENT) ID> -DisplayName "MHCA Treatment Plan Estimator" -Site <site web address> -Permissions Write` (newer PnP versions call it `Grant-PnPEntraIDAppSitePermission`)
-> 4. Optional, for the Fee Schedule price check: **read** on the Billing Department site, the same way with `"roles": ["read"]`.
+> 4. **Read** on the Billing Department site, the same way with `"roles": ["read"]`. The app reads its insurance rates and cash prices live from the Fee Schedule there; without this grant it shows "not ready".
 > 5. Create a **client secret** (Certificates & secrets) and give it to me in person or through our password manager, not by email or chat. Please tell me its expiry date.
 >
 > Thank you.
 
 **(CorporateDrive or two sites)** If the workbook and the log list are on different sites, ask for **read** on the workbook's site and **write** on the log list's site instead.
 
-Find the Billing site ID for item 4 with:
+Find the Billing site ID for item 4 (required) with:
 
 ```
 GET https://graph.microsoft.com/v1.0/drives/b!5tnb6bLSWU2cr0Fyqdme8sr-r_CXXlJCv_nIcpkR8cYC3SF8On0DTaP4Asyu0SBf/root?$select=webUrl,parentReference
@@ -218,7 +218,7 @@ Reply with this list filled in. **Do not include any secret or ID value**; "set"
 - Fee Schedule rows renumbered by −3 (first Interview visit row reads 5): yes / no
 - Excel opened, no errors: yes / no
 - Log list created and permissions limited to billing leadership: yes / no
-- Admin confirmed: app is single tenant with the redirect URI; `Sites.Selected` with admin consent; **write** on the estimator site (or read/write on the two sites); optional read on Billing; secret expiry date
+- Admin confirmed: app is single tenant with the redirect URI; `Sites.Selected` with admin consent; **write** on the estimator site (or read/write on the two sites); **read** on the Billing site (required: live rates); secret expiry date
 - Vercel Production variables set (one line each): `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AUTH_SECRET`, `DIRECTORY_DRIVE_ID`, `DIRECTORY_ITEM_ID`, `LOG_SITE_ID`, `LOG_LIST_ID`
 - `/diagnostics` result: the Settings, Directory workbook, Estimate log list and Loaded data lines (OK / Problem, and any message shown)
 - Small answers: spelling of **Denish** Gusich; first names of Dr. Lee, Dr. Nine and Dr. Arbuckle-Washington; logo file (when available)

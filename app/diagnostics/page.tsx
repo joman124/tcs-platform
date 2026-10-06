@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { runDiagnostics, type Check } from '@/src/data/diagnostics';
-import { listWorksheets, readSheet } from '@/src/data/graph';
+import { listWorksheets, readFeeSchedule, readSheet } from '@/src/data/graph';
 import { isDemo, loadData } from '@/src/data/load';
 import { readLogList } from '@/src/data/log';
 
@@ -25,6 +25,7 @@ export default async function Diagnostics() {
     env,
     listWorksheets: () => listWorksheets(env.DIRECTORY_DRIVE_ID ?? '', env.DIRECTORY_ITEM_ID ?? ''),
     readSheet: (name) => readSheet(env.DIRECTORY_DRIVE_ID ?? '', env.DIRECTORY_ITEM_ID ?? '', name),
+    readFeeSchedule,
     readLogList,
     loadData: () => loadData(),
   });
@@ -77,7 +78,7 @@ export default async function Diagnostics() {
           </table>
           {r.workbook.value.parsed.ok ? (
             <p>
-              Parsed: {r.workbook.value.parsed.value.providers} providers, {r.workbook.value.parsed.value.services} services, {r.workbook.value.parsed.value.plans} plans.
+              Parsed with live Fee Schedule rates: {r.workbook.value.parsed.value.providers} providers, {r.workbook.value.parsed.value.services} services ({r.workbook.value.parsed.value.offered} offered in the picker), {r.workbook.value.parsed.value.plans} plans.
             </p>
           ) : (
             <p className="mono">{failed(r.workbook.value.parsed)}</p>
@@ -85,6 +86,22 @@ export default async function Diagnostics() {
         </>
       ) : (
         <p className="mono">{r.workbook.error}</p>
+      )}
+
+      <h2>
+        Fee Schedule (live rates): <Mark ok={r.feeSchedule.ok && r.feeSchedule.value.missingPayers.length === 0} />
+      </h2>
+      {r.feeSchedule.ok ? (
+        r.feeSchedule.value.visits > 0 ? (
+          <p>
+            Header row {r.feeSchedule.value.headerRow}, data from row {r.feeSchedule.value.firstDataRow}: {r.feeSchedule.value.visits} visits, {r.feeSchedule.value.usable} usable rate cells, {r.feeSchedule.value.quarantined} quarantined, {r.feeSchedule.value.ambiguous} Medicare (on hold).
+            {r.feeSchedule.value.missingPayers.length > 0 && ` Payers in the workbook with no Fee Schedule column (always blocked): ${r.feeSchedule.value.missingPayers.join(', ')}.`}
+          </p>
+        ) : (
+          <p>Read, but not checked against the workbook (see the workbook result above).</p>
+        )
+      ) : (
+        <p className="mono">{r.feeSchedule.error}</p>
       )}
 
       <h2>

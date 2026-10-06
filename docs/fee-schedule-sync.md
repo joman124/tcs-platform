@@ -1,6 +1,8 @@
 # Fee Schedule sync
 
-The directory workbook's `FeeRates` and `CashPrices` tabs are a snapshot of the Billing Department's `MHCA Fee Schedule.xlsx`. This sync rebuilds them from the live sheet. **Only the engine and a dry-run diff exist.** Nothing writes to the directory workbook or the Fee Schedule yet; writing synced rows is a later, separately approved step.
+**The app reads its rates live from the Fee Schedule (decided 2026-10-06).** Each time it loads data (5-minute cache, or "Refresh data"), it reads the Billing Department's `MHCA Fee Schedule.xlsx` read-only, runs this sync, and uses the result in place of the directory workbook's `FeeRates` and `CashPrices` tabs (`src/data/liveRates.ts`). The workbook keeps providers, services, credentialing and the service-to-visit links. Nothing is written to either spreadsheet.
+
+Before pricing, the loader checks that the two spreadsheets line up: the workbook's own `FeeRates` tab (kept, even though its amounts are no longer used) must match the sheet's row numbers (so an unrenumbered workbook is refused), and every visit and cash-price row the workbook points at must be a visit on the sheet. Any mismatch shows on the "not ready" page, naming the problem, instead of pricing from the wrong rows. If Billing moves a column, the layout check does the same.
 
 | Piece | What it does |
 |---|---|
@@ -53,7 +55,6 @@ AZURE_TENANT_ID=… AZURE_CLIENT_ID=… AZURE_CLIENT_SECRET=… DIRECTORY_DRIVE_
 
 The report lists: header and data rows, payer columns, warnings, cell counts by status, quarantined cells with their medians, numbers stored as text, optional add-ons, add-ons with notes, non-CPT parents, unlabelled rows, skipped rows, and against the current tab: row offset, changed rates or usability, rows only in the sync, rows only in the current tab, and payers on one side only.
 
-## Not built yet
+## Not needed any more
 
-- Writing synced `FeeRates`/`CashPrices` to the directory workbook (needs a write grant on the directory site and the renumbering decision above).
-- Running it on a schedule.
+- Writing synced rows to the workbook, or running the sync on a schedule: the app reads the Fee Schedule live. The dry-run diff (`npm run fee-schedule-diff`) remains for comparing the old snapshot with the sheet.

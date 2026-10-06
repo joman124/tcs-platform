@@ -69,3 +69,21 @@ export async function readDirectoryWorkbook(): Promise<Sheets> {
   const entries = await Promise.all(SHEETS.filter((s) => present.has(s)).map(async (s) => [s, await readSheet(drive, item, s)] as const));
   return Object.fromEntries(entries);
 }
+
+/** Billing Department copy of the Fee Schedule (source of truth, docs/HANDOFF.md §5). Identifiers, not secrets. */
+export const BILLING_FEE_SCHEDULE = {
+  drive: 'b!5tnb6bLSWU2cr0Fyqdme8sr-r_CXXlJCv_nIcpkR8cYC3SF8On0DTaP4Asyu0SBf',
+  item: '016S6WHA37ZNV3LWBGB5CZUHTAZIVPIYLB',
+  sheet: 'Fee Schedule',
+};
+
+/** The live Fee Schedule tab (read-only). FEE_SCHEDULE_DRIVE_ID / FEE_SCHEDULE_ITEM_ID override the Billing copy. */
+export async function readFeeSchedule(): Promise<{ address: string; values: unknown[][] }> {
+  const drive = process.env.FEE_SCHEDULE_DRIVE_ID || BILLING_FEE_SCHEDULE.drive;
+  const item = process.env.FEE_SCHEDULE_ITEM_ID || BILLING_FEE_SCHEDULE.item;
+  const res = await graphFetch(`/drives/${drive}/items/${item}/workbook/worksheets('${encodeURIComponent(BILLING_FEE_SCHEDULE.sheet)}')/usedRange(valuesOnly=true)?$select=address,values`);
+  if (res.status === 403 || res.status === 401) throw new Error('The app cannot read the Fee Schedule: it needs read access to the Billing Department site (docs/SETUP-CHECKLIST.md, step 5).');
+  if (res.status === 404) throw new Error('The Fee Schedule was not found. Check FEE_SCHEDULE_DRIVE_ID and FEE_SCHEDULE_ITEM_ID, or that the "Fee Schedule" tab still exists.');
+  if (!res.ok) throw new Error(`Reading the Fee Schedule failed (${res.status}).`);
+  return (await res.json()) as { address: string; values: unknown[][] };
+}

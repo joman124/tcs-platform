@@ -268,6 +268,17 @@ try {
     ok('a11y: Escape closes the preview and focus returns to its button', (await page.locator('[role=dialog]').count()) === 0 && (await active()).text === 'Preview patient copy', JSON.stringify(await active()));
     await ctx.close(); }
 
+  // 17. Every insurance-billable service is offered, even when switched off in the workbook (user decision 2026-10-06)
+  { const { ctx, page } = await newPage(); await page.goto(BASE);
+    await page.click('#add-service');
+    const options = await page.locator('#svc option').allInnerTexts();
+    ok('service picker: a switched-off service with an insurance rate is offered (TMS)', options.includes('TMS Session'), options.join('|'));
+    ok('service picker: a switched-off service with no insurance rate stays hidden (IOP)', !options.includes('Intensive Outpatient Program'));
+    await page.selectOption('#svc', { label: 'TMS Session' }); await page.selectOption('#prov', { label: 'Dana Doctoral, PsyD' });
+    await page.click('#pay-ins'); await page.click('button[role=radio]:has-text("Aetna Commercial")');
+    ok('service picker: the switched-off billable service prices from its insurance rate ($210.50)', (await page.locator('#rate-value').innerText()) === '$210.50');
+    await ctx.close(); }
+
   // 14. The diagnostics page does not exist in demo mode (no sign-in there)
   { const r = await fetch(`${BASE}/diagnostics`, { redirect: 'manual' });
     ok('diagnostics: not found in demo mode', r.status === 404, String(r.status));
