@@ -250,8 +250,8 @@ try {
     for (let i = 0; i < 8; i++) { await page.keyboard.press('Tab'); if (!(await active()).inDialog) trapped = false; }
     for (let i = 0; i < 8; i++) { await page.keyboard.press('Shift+Tab'); if (!(await active()).inDialog) trapped = false; }
     ok('a11y: Tab and Shift+Tab stay inside the dialog', trapped);
-    await page.focus('#svc'); await page.keyboard.press('Shift+Tab');
-    ok('a11y: Shift+Tab from the first control wraps to the last enabled one (Cancel; Add is disabled until priced)', (await active()).inDialog && (await active()).text === 'Cancel', JSON.stringify(await active()));
+    await page.focus('#kind-directory'); await page.keyboard.press('Shift+Tab');
+    ok('a11y: Shift+Tab from the first control (the kind toggle) wraps to the last enabled one (Cancel; Add is disabled until priced)', (await active()).inDialog && (await active()).text === 'Cancel', JSON.stringify(await active()));
     await page.keyboard.press('Escape');
     ok('a11y: Escape closes and focus returns to "+ Add service"', (await page.locator('[role=dialog]').count()) === 0 && (await active()).id === 'add-service', JSON.stringify(await active()));
     await addLine(page, { service: 'Individual Counseling', provider: 'Chris Cash, MA', pay: 'cash' }); await confirmAdd(page);
@@ -277,6 +277,49 @@ try {
     await page.selectOption('#svc', { label: 'TMS Session' }); await page.selectOption('#prov', { label: 'Dana Doctoral, PsyD' });
     await page.click('#pay-ins'); await page.click('button[role=radio]:has-text("Aetna Commercial")');
     ok('service picker: the switched-off billable service prices from its insurance rate ($210.50)', (await page.locator('#rate-value').innerText()) === '$210.50');
+    await ctx.close(); }
+
+  // 18. Custom service: the admin types the description and price per visit; provider optional (user request 2026-10-06)
+  { const { ctx, page } = await newPage(); await page.goto(BASE);
+    await page.fill('#patient', 'Custom Patient');
+    await addLine(page, { service: 'Individual Counseling', provider: 'Chris Cash, MA', pay: 'cash' }); await confirmAdd(page); // $95 x 4 = $380
+    await page.click('#add-service'); await page.click('#kind-custom');
+    ok('custom: Add stays off until a description and a price are entered', await page.locator('#add-confirm').isDisabled());
+    await page.fill('#custom-desc', 'Lab work (invented)'); await page.fill('#custom-price', 'abc');
+    ok('custom: a price that is not an amount is explained and cannot be added', (await page.getByText('Enter an amount such as 45 or 45.50.').isVisible()) && (await page.locator('#add-confirm').isDisabled()));
+    await page.fill('#custom-price', '0');
+    ok('custom: a $0 price is blocked', (await page.getByText('Enter a price per visit greater than $0.').isVisible()) && (await page.locator('#add-confirm').isDisabled()));
+    await page.fill('#custom-price', '45');
+    await page.click('button:has-text("Total sessions")'); await page.fill('#f1', '1'); await page.fill('#f2', '');
+    ok('custom: rate and line total come from the typed price ($45.00)', (await page.locator('#rate-value').innerText()) === '$45.00' && (await page.locator('#line-total').innerText()) === '$45.00');
+    await confirmAdd(page);
+    const custRow = page.locator('tr[data-testid=line]').nth(1);
+    const cells = await custRow.locator('td').allInnerTexts();
+    ok('custom: the row shows the description, no provider and "Custom price"', cells[0] === 'Lab work (invented)' && cells[1].trim() === '—' && cells[2] === 'Custom price' && cells[4] === '$45.00', cells.join('|'));
+    ok('custom: added to the full plan ($380 + $45 = $425.00)', (await page.locator('#view-total').innerText()) === '$425.00');
+    // Edit: prefilled, then change the price, add a provider and make it weekly
+    await page.locator('button[aria-label="Edit Lab work (invented)"]').click();
+    ok('custom edit: focus starts in the description', await page.evaluate(() => document.activeElement?.id === 'custom-desc'));
+    ok('custom edit: opens on Custom service with the description and price filled in', (await page.locator('#kind-custom').getAttribute('aria-pressed')) === 'true' && (await page.inputValue('#custom-desc')) === 'Lab work (invented)' && (await page.inputValue('#custom-price')) === '45.00');
+    await page.fill('#custom-desc', 'Home visit (invented)'); await page.fill('#custom-price', '120.50');
+    await page.selectOption('#custom-prov', { label: 'Dana Doctoral, PsyD' });
+    await page.click('button:has-text("Per week × weeks")'); await page.fill('#f1', '1'); await page.fill('#f2', '2');
+    await page.click('#save-confirm');
+    const edited = await page.locator('tr[data-testid=line]').nth(1).locator('td').allInnerTexts();
+    ok('custom edit: saved in place with the provider and the new price', (await rowCount(page)) === 2 && edited[0] === 'Home visit (invented)' && edited[1].startsWith('Dana Doctoral') && edited[4] === '$120.50' && edited[5] === '$241.00', edited.join('|'));
+    ok('custom edit: full plan updated ($380 + $241 = $621.00)', (await page.locator('#view-total').innerText()) === '$621.00');
+    const sheet = await printText(page);
+    ok('custom: the patient copy lists the description, provider and amounts', sheet.includes('Home visit (invented)') && sheet.includes('$120.50') && sheet.includes('$241.00') && sheet.includes('$621.00'));
+    ok('custom: printing is allowed', await page.locator('#print').isEnabled());
+    // A directory line can still be added after a custom one, and the toggle switches back.
+    await page.click('#add-service'); await page.click('#kind-custom'); await page.click('#kind-directory');
+    ok('custom: switching back shows the directory pickers', (await page.locator('#svc').isVisible()) && (await page.locator('#custom-desc').count()) === 0);
+    await page.keyboard.press('Escape');
+    // Log gate: a custom row is accepted as service CUSTOM; the description can never be sent in its place.
+    const post = (row) => page.evaluate(async (r) => (await fetch('/api/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows: [r] }) })).status, row);
+    const base = { estimateId: 'x', date: '2026-10-06', serviceId: 'CUSTOM', providerId: '', paymentType: 'custom', payer: '', perVisitCents: 4500, sessions: 1, totalCents: 4500, estimateFullPlanCents: 4500 };
+    ok('custom log row: accepted by the server (service CUSTOM, no provider, no payer)', (await post(base)) === 200);
+    ok('custom log row: the description in place of the service id is rejected', (await post({ ...base, serviceId: 'Lab work (invented)' })) === 400);
     await ctx.close(); }
 
   // 14. The diagnostics page does not exist in demo mode (no sign-in there)

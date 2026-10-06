@@ -44,12 +44,13 @@ For each line: open the estimator, choose "+ Add service", pick the service and 
 14. [ ] Choose **Edit** on line 5. **Expected:** the dialog says "Edit service", everything is prefilled. Change weeks to 8 and "Save changes". **Expected:** the line stays second; line total $826.48; Full plan $3,354.51.
 15. [ ] Choose **Edit** on a line, change something, then **Cancel**. **Expected:** nothing changed.
 16. [ ] "Preview patient copy". **Expected:** the edited values (8 weeks); no CPT codes, plan names, credentials or warnings; weekly, monthly and full-plan figures; "info@mentalhealthcenter.com"; no SAMPLE DATA watermark.
+16a. [ ] "+ Add service", choose **Custom service**. Description "Test custom item", no specific provider, price 45, Total sessions 1. **Expected:** Rate per visit $45.00; the line shows "—" for provider and "Custom price"; Full plan goes up by $45.00; the patient copy lists "Test custom item" at $45.00.
 17. [ ] Print (to PDF is fine). **Expected:** US Letter; then "Printed. Clear for the next patient?" appears.
 
 ## D. The log (SharePoint list)
 
-18. [ ] Open the log list. **Expected:** exactly **one new row per printed line** (3 rows for step 17), all with the same EstimateId and today's date.
-19. [ ] **No patient name in any row** (search the list for "Test Patient": no results). Columns hold only IDs, payment type, payer, amounts and sessions.
+18. [ ] Open the log list. **Expected:** exactly **one new row per printed line** (4 rows for step 17, including the custom line), all with the same EstimateId and today's date. The custom line's row has ServiceId `CUSTOM`, PaymentType `custom`, blank ProviderId and Payer, PerVisit 45.
+19. [ ] **No patient name and no custom description in any row** (search the list for "Test Patient" and "Test custom item": no results). Columns hold only IDs, payment type, payer, amounts and sessions.
 20. [ ] The row for line 5 shows the **edited** values (Sessions 8, LineTotal 826.48), not the values from before the edit. Editing before printing logs only the final values.
 21. [ ] Choose "Keep", print again without changes. **Expected:** no new rows (an estimate is logged once). Then edit any line and print again. **Expected:** a new set of rows with a new EstimateId.
 

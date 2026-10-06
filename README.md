@@ -10,7 +10,7 @@ An administrator builds a patient's treatment-plan cost estimate, then prints a 
 
 ## Privacy
 
-The estimate (including the patient name) lives only in browser memory. Nothing is saved to localStorage, cookies, IndexedDB or the server, and a reload, a new tab or 15 idle minutes start blank. After printing, only de-identified line figures (service, provider, payer, amounts, no name, no free text) are sent to the log, and the server rejects any other field.
+The estimate (including the patient name) lives only in browser memory. Nothing is saved to localStorage, cookies, IndexedDB or the server, and a reload, a new tab or 15 idle minutes start blank. After printing, only de-identified line figures (service, provider, payer, amounts, no name, no free text) are sent to the log, and the server rejects any other field. A custom line's typed description prints on the patient copy but is logged only as service `CUSTOM`.
 
 ## Setup
 

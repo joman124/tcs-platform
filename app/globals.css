@@ -59,6 +59,9 @@ tr.blocked td { color: var(--wine); }
 .modal { background: var(--white); border: 1px solid var(--navy); border-radius: 12px; padding: 22px 24px; display: flex; flex-direction: column; gap: 16px; max-width: 760px; width: 100%; }
 .modal h2 { margin: 0; font-size: 20px; font-weight: 600; }
 .steps { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.steps .wide { grid-column: 1 / -1; }
+.steps .field { width: 100%; }
+.steps .hint { display: block; margin-top: 4px; }
 .steps label, .lbl2, .freq label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 4px; }
 select { width: 100%; font-size: 15px; padding: 9px 10px; border: 1px solid var(--navy); border-radius: 8px; background: var(--white); color: var(--navy); }
 .pay { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }

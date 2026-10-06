@@ -10,8 +10,8 @@ One list item per priced line. Blocked lines are not logged. Fields (see `src/en
 |---|---|
 | EstimateId | random per estimate; not derived from anything about the patient |
 | EstimateDate | date only (no time) |
-| ServiceId, ProviderId | workbook IDs |
-| PaymentType, Payer | cash or insurance; parent payer only (not sub-plan, not member info) |
+| ServiceId, ProviderId | workbook IDs; a custom line (admin-typed description and price) is `CUSTOM` with the provider ID or blank. The description is never logged. |
+| PaymentType, Payer | cash, insurance or custom; parent payer only (not sub-plan, not member info), blank for cash and custom |
 | PerVisit, Sessions, LineTotal, EstimateFullPlanTotal | dollars |
 
 Not stored: patient name, free text, exact time, the admin's identity, plan sub-names, any CPT or credentialing detail.

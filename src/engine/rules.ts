@@ -1,5 +1,7 @@
 import { toCents } from './money';
 import {
+  CUSTOM_MAX_CENTS,
+  CUSTOM_SERVICE_ID,
   NO_MEDICARE_CREDENTIALS,
   type Credential,
   type EngineData,
@@ -138,7 +140,38 @@ export function plansForProvider(provider: Provider, data: EngineData): PlanOpti
   return out;
 }
 
+const finished = (perVisitCents: number, freq: Sessions, extra: Partial<LineResult> = {}): LineResult => ({
+  ok: true,
+  issues: freq.issues,
+  perVisitCents,
+  sessions: freq.sessions,
+  totalCents: perVisitCents * freq.sessions,
+  spanWeeks: freq.spanWeeks,
+  recurring: freq.sessions > 1,
+  cashFallbackAvailable: false,
+  ...extra,
+});
+
+/**
+ * A custom line: the admin's own description and price per visit. No directory service, rate or credentialing applies.
+ * The provider is optional; if one is given it must be Active.
+ */
+function priceCustomLine(input: LineInput, perVisitCents: number, data: EngineData): LineResult {
+  if (input.serviceId !== CUSTOM_SERVICE_ID) return blocked([block('unknown-service', 'Service not found.')]);
+  if (input.providerId !== '') {
+    const provider = data.providers.find((p) => p.id === input.providerId);
+    if (!provider) return blocked([block('unknown-provider', 'Provider not found.')]);
+    if (provider.status !== 'Active') return blocked([block('provider-unavailable', `Provider status is "${provider.status}".`)]);
+  }
+  if (!Number.isInteger(perVisitCents) || perVisitCents < 1) return blocked([block('custom-price', 'Enter a price per visit greater than $0.')]);
+  if (perVisitCents > CUSTOM_MAX_CENTS) return blocked([block('custom-price', 'Price per visit must be $100,000 or less.')]);
+  const freq = resolveFrequency(input.frequency);
+  if ('error' in freq) return blocked([freq.error]);
+  return finished(perVisitCents, { ...freq, issues: [...freq.issues] });
+}
+
 export function priceLine(input: LineInput, data: EngineData): LineResult {
+  if (input.payment.type === 'custom') return priceCustomLine(input, input.payment.perVisitCents, data);
   const provider = data.providers.find((p) => p.id === input.providerId);
   if (!provider) return blocked([block('unknown-provider', 'Provider not found.')]);
   if (provider.status !== 'Active') {
@@ -158,18 +191,7 @@ export function priceLine(input: LineInput, data: EngineData): LineResult {
   const freq = resolveFrequency(input.frequency);
   if ('error' in freq) return blocked([freq.error]);
   const issues: Issue[] = [...freq.issues];
-
-  const finish = (perVisitCents: number, extra: Partial<LineResult> = {}): LineResult => ({
-    ok: true,
-    issues,
-    perVisitCents,
-    sessions: freq.sessions,
-    totalCents: perVisitCents * freq.sessions,
-    spanWeeks: freq.spanWeeks,
-    recurring: freq.sessions > 1,
-    cashFallbackAvailable: false,
-    ...extra,
-  });
+  const finish = (perVisitCents: number, extra: Partial<LineResult> = {}): LineResult => finished(perVisitCents, { ...freq, issues }, extra);
 
   // ---- Cash
   const payment = input.payment;

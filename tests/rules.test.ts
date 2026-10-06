@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { canBillMedicare, plansForProvider, priceLine, providersForService, resolveService, serviceNames, tierOf, type LineInput } from '../src/engine';
+import { CUSTOM_MAX_CENTS, CUSTOM_SERVICE_ID, canBillMedicare, plansForProvider, priceLine, providersForService, resolveService, serviceNames, tierOf, type LineInput } from '../src/engine';
 import { data } from './fixtures';
 
 const weekly = (perWeek: number, weeks: number) => ({ kind: 'weekly' as const, perWeek, weeks });
@@ -248,5 +248,45 @@ describe('a service split across two providers', () => {
     const b = priceLine(line({ providerId: 'P5', frequency: weekly(1, 4) }), data);
     expect(a.perVisitCents).toBe(13775);
     expect(b.perVisitCents).toBe(30000);
+  });
+});
+
+describe('custom lines (admin description and price)', () => {
+  const custom = (perVisitCents: number, over: Partial<LineInput> = {}): LineInput =>
+    line({ serviceId: CUSTOM_SERVICE_ID, providerId: '', payment: { type: 'custom', perVisitCents }, ...over });
+
+  it('prices at the typed price, with no provider, rate or credentialing', () => {
+    const r = priceLine(custom(4550), data);
+    expect([r.ok, r.perVisitCents, r.sessions, r.totalCents, r.spanWeeks, r.recurring, r.payer]).toEqual([true, 4550, 4, 18200, 4, true, undefined]);
+    expect(r.issues).toEqual([]);
+  });
+
+  it('one time: total sessions 1 is not recurring', () => {
+    const r = priceLine(custom(4500, { frequency: { kind: 'total', sessions: 1 } }), data);
+    expect([r.ok, r.totalCents, r.recurring]).toEqual([true, 4500, false]);
+  });
+
+  it('any active provider may be named, whatever services or payment types they take', () => {
+    expect(priceLine(custom(12000, { providerId: 'P4' }), data).ok).toBe(true); // insurance-only provider
+    expect(priceLine(custom(12000, { providerId: 'P3' }), data).ok).toBe(true); // does not offer S2
+  });
+
+  it('a named provider must exist and be active', () => {
+    expect(codes(priceLine(custom(12000, { providerId: 'P6' }), data))).toEqual(['provider-unavailable']);
+    expect(codes(priceLine(custom(12000, { providerId: 'P404' }), data))).toEqual(['unknown-provider']);
+  });
+
+  it('the price must be whole cents from $0.01 to $100,000', () => {
+    for (const bad of [0, -100, 12.5, Number.NaN, CUSTOM_MAX_CENTS + 1]) expect(codes(priceLine(custom(bad), data))).toEqual(['custom-price']);
+    expect(priceLine(custom(CUSTOM_MAX_CENTS), data).ok).toBe(true);
+  });
+
+  it('frequency rules still apply', () => {
+    expect(codes(priceLine(custom(4500, { frequency: weekly(0, 4) }), data))).toEqual(['bad-frequency']);
+  });
+
+  it('only service CUSTOM takes a custom price, and CUSTOM takes no other payment', () => {
+    expect(codes(priceLine(custom(4500, { serviceId: 'S2', providerId: 'P1' }), data))).toEqual(['unknown-service']);
+    expect(codes(priceLine(line({ serviceId: CUSTOM_SERVICE_ID }), data))).toEqual(['unknown-service']);
   });
 });

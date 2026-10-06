@@ -5,8 +5,8 @@ import { useEffect, useRef, type ReactNode } from 'react';
 const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
- * Modal dialog shell: focus moves to the first control on open, Tab and Shift+Tab stay inside, Escape closes, and on
- * close focus returns to whatever opened it (the Add, Edit or Preview button).
+ * Modal dialog shell: focus moves to the control marked `data-autofocus` (else the first control) on open, Tab and
+ * Shift+Tab stay inside, Escape closes, and on close focus returns to whatever opened it (the Add, Edit or Preview button).
  */
 export function Modal({ label, onClose, children }: { label: string; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -16,7 +16,7 @@ export function Modal({ label, onClose, children }: { label: string; onClose: ()
   useEffect(() => {
     const trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const focusables = () => [...(ref.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? [])].filter((el) => el.offsetParent !== null || el === document.activeElement);
-    (focusables()[0] ?? ref.current)?.focus();
+    (ref.current?.querySelector<HTMLElement>('[data-autofocus]') ?? focusables()[0] ?? ref.current)?.focus();
 
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {

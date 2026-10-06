@@ -120,7 +120,7 @@ POST https://graph.microsoft.com/v1.0/sites/<SITE-ID>/lists
     { "name": "EstimateDate", "dateTime": { "format": "dateOnly" }, "indexed": true },
     { "name": "ServiceId", "text": {} },
     { "name": "ProviderId", "text": {} },
-    { "name": "PaymentType", "choice": { "choices": ["cash", "insurance"], "displayAs": "dropDownMenu" } },
+    { "name": "PaymentType", "choice": { "choices": ["cash", "insurance", "custom"], "displayAs": "dropDownMenu" } },
     { "name": "Payer", "text": {} },
     { "name": "PerVisit", "number": { "decimalPlaces": "two", "minimum": 0 } },
     { "name": "Sessions", "number": { "decimalPlaces": "none", "minimum": 1 } },

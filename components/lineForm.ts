@@ -10,10 +10,13 @@ export interface NewLine {
 
 export type PayType = 'cash' | 'insurance' | '';
 export type FreqMode = 'week' | 'total';
+export type LineKind = 'directory' | 'custom';
 export type FormField = 'service' | 'provider' | 'payment' | 'plan';
 
 /** Everything the add/edit dialog holds while open. Frequency inputs stay as typed text. */
 export interface LineFormState {
+  /** 'custom': the admin types the description and the price per visit. */
+  kind: LineKind;
   serviceName: string;
   providerId: string;
   payType: PayType;
@@ -21,9 +24,22 @@ export interface LineFormState {
   mode: FreqMode;
   a: string;
   b: string;
+  /** Custom line: the service description as typed. */
+  description: string;
+  /** Custom line: price per visit in dollars, as typed. */
+  price: string;
 }
 
-export const EMPTY_FORM: LineFormState = { serviceName: '', providerId: '', payType: '', subPlan: '', mode: 'week', a: '1', b: '12' };
+export const EMPTY_FORM: LineFormState = { kind: 'directory', serviceName: '', providerId: '', payType: '', subPlan: '', mode: 'week', a: '1', b: '12', description: '', price: '' };
+
+export const CUSTOM_DESCRIPTION_MAX = 80;
+
+/** Dollars as typed to whole cents; null unless it is a plain amount such as 45, 45.5 or 1,200.00. */
+export function priceToCents(text: string): number | null {
+  const t = text.trim().replace(/^\$/, '').replace(/,/g, '');
+  if (!/^\d+(\.\d{1,2})?$/.test(t)) return null;
+  return Math.round(Number(t) * 100);
+}
 
 export interface PrefilledForm {
   form: LineFormState;
@@ -44,6 +60,21 @@ export function formFromLine(line: NewLine, data: EngineData): PrefilledForm {
       ? { ...EMPTY_FORM, mode: 'week', a: String(f.perWeek), b: String(f.weeks) }
       : { ...EMPTY_FORM, mode: 'total', a: String(f.sessions), b: f.spanWeeks !== undefined ? String(f.spanWeeks) : '' };
 
+  const pay = line.input.payment;
+  if (pay.type === 'custom') {
+    form.kind = 'custom';
+    form.description = line.serviceName;
+    form.price = (pay.perVisitCents / 100).toFixed(2);
+    if (line.input.providerId === '') return { form, stale: {} };
+    const known = data.providers.find((p) => p.id === line.input.providerId);
+    if (!known || known.status !== 'Active') {
+      const who = known ? displayName(known.name) : 'The saved provider';
+      return { form, stale: { provider: `${who} is no longer available. Choose the provider again, or no specific provider.` } };
+    }
+    form.providerId = known.id;
+    return { form, stale: {} };
+  }
+
   if (!serviceNames(data).includes(line.serviceName)) {
     return { form, stale: { service: `"${line.serviceName}" is no longer offered. Choose the service again.` } };
   }
@@ -58,7 +89,6 @@ export function formFromLine(line: NewLine, data: EngineData): PrefilledForm {
   form.providerId = provider.id;
   const who = displayName(provider.name);
 
-  const pay = line.input.payment;
   if (pay.type === 'cash') {
     if (provider.accepts === 'Insurance') return { form, stale: { payment: `${who} no longer takes cash pay. Choose how this will be paid again.` } };
     form.payType = 'cash';

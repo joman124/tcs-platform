@@ -30,4 +30,25 @@ describe('log payload validation', () => {
     expect(validateLogPayload({ rows: [{ ...row, paymentType: 'cash', payer: '' }] }, known).ok).toBe(true);
     expect(validateLogPayload({ rows: [{ ...row, paymentType: 'cash', payer: 'Aetna' }] }, known).ok).toBe(false);
   });
+  describe('custom lines', () => {
+    const custom = { ...row, serviceId: 'CUSTOM', providerId: '', paymentType: 'custom', payer: '' };
+    it('accepts service CUSTOM with no provider or with a known one, and no payer', () => {
+      expect(validateLogPayload({ rows: [custom] }, known).ok).toBe(true);
+      expect(validateLogPayload({ rows: [{ ...custom, providerId: 'P001' }] }, known).ok).toBe(true);
+    });
+    it('rejects an unknown provider, a payer, or any other service id on a custom row', () => {
+      expect(validateLogPayload({ rows: [{ ...custom, providerId: 'P999' }] }, known).ok).toBe(false);
+      expect(validateLogPayload({ rows: [{ ...custom, payer: 'Aetna' }] }, known).ok).toBe(false);
+      expect(validateLogPayload({ rows: [{ ...custom, serviceId: 'S02' }] }, known).ok).toBe(false);
+    });
+    it('rejects the description smuggled in as the service id', () => {
+      expect(validateLogPayload({ rows: [{ ...custom, serviceId: 'Lab work' }] }, known).ok).toBe(false);
+      expect(validateLogPayload({ rows: [{ ...custom, serviceId: 'Lab-work' }] }, known).ok).toBe(false);
+    });
+    it('cash and insurance rows cannot use service CUSTOM or leave the provider empty', () => {
+      expect(validateLogPayload({ rows: [{ ...row, serviceId: 'CUSTOM' }] }, known).ok).toBe(false);
+      expect(validateLogPayload({ rows: [{ ...row, paymentType: 'cash', payer: '', serviceId: 'CUSTOM' }] }, known).ok).toBe(false);
+      expect(validateLogPayload({ rows: [{ ...row, providerId: '' }] }, known).ok).toBe(false);
+    });
+  });
 });
