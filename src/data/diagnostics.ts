@@ -1,4 +1,4 @@
-import { serviceNames } from '../engine/rules';
+import { insuranceBillable, serviceNames } from '../engine/rules';
 import { payersWithoutColumns, withLiveFeeSchedule, type FeeScheduleRange } from './liveRates';
 import { checkWorkbook, missingParts, parseWorkbook, SHEETS, type MissingPart, type Sheet, type SheetName } from './workbook';
 
@@ -61,7 +61,7 @@ export interface DiagnosticsReport {
   generatedAt: string;
   settings: SettingStatus[];
   missingRequired: string[];
-  workbook: Check<{ tabs: TabCount[]; missing: MissingPart[]; parsed: Check<{ providers: number; services: number; offered: number; plans: number }> }>;
+  workbook: Check<{ tabs: TabCount[]; missing: MissingPart[]; parsed: Check<{ providers: number; services: number; offered: number; billable: number; plans: number }> }>;
   /** The live Fee Schedule: layout found, cell counts, and PayerKey payers with no column on the sheet. */
   feeSchedule: Check<{ headerRow: number; firstDataRow: number; visits: number; usable: number; quarantined: number; ambiguous: number; missingPayers: string[] }>;
   log: Check<{ status: number }> | { ok: null; reason: string };
@@ -110,7 +110,7 @@ export async function runDiagnostics(deps: DiagnosticsDeps): Promise<Diagnostics
       const present = new Set(await deps.listWorksheets());
       const sheets: Record<string, Sheet> = {};
       for (const tab of SHEETS) if (present.has(tab)) sheets[tab] = await deps.readSheet(tab);
-      let parsed: Check<{ providers: number; services: number; offered: number; plans: number }>;
+      let parsed: Check<{ providers: number; services: number; offered: number; billable: number; plans: number }>;
       try {
         // Same steps as the app's loader: the workbook's own tabs first, then live Fee Schedule rates.
         checkWorkbook(sheets);
@@ -119,7 +119,7 @@ export async function runDiagnostics(deps: DiagnosticsDeps): Promise<Diagnostics
         const r = live.report;
         feeSchedule = { ok: true, value: { headerRow: r.headerRow, firstDataRow: r.firstDataRow, visits: r.visits, usable: r.usable, quarantined: r.quarantined.length, ambiguous: r.ambiguous, missingPayers: payersWithoutColumns(sheets, r) } };
         const d = parseWorkbook(live.sheets, deps.now);
-        parsed = { ok: true, value: { providers: d.providers.length, services: d.services.length, offered: serviceNames(d).length, plans: d.planMap.length } };
+        parsed = { ok: true, value: { providers: d.providers.length, services: d.services.length, offered: serviceNames(d).length, billable: d.services.filter((s) => insuranceBillable(s, d)).length, plans: d.planMap.length } };
       } catch (e) {
         parsed = { ok: false, error: errorText(e) };
       }

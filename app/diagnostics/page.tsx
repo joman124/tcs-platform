@@ -78,7 +78,7 @@ export default async function Diagnostics() {
           </table>
           {r.workbook.value.parsed.ok ? (
             <p>
-              Parsed with live Fee Schedule rates: {r.workbook.value.parsed.value.providers} providers, {r.workbook.value.parsed.value.services} services ({r.workbook.value.parsed.value.offered} offered in the picker), {r.workbook.value.parsed.value.plans} plans.
+              Parsed with live Fee Schedule rates: {r.workbook.value.parsed.value.providers} providers, {r.workbook.value.parsed.value.services} services ({r.workbook.value.parsed.value.offered} names in the picker, {r.workbook.value.parsed.value.billable} billable to insurance), {r.workbook.value.parsed.value.plans} plans.
             </p>
           ) : (
             <p className="mono">{failed(r.workbook.value.parsed)}</p>

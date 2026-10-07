@@ -32,8 +32,12 @@ describe('cash lines', () => {
     expect(r.ok).toBe(false);
     expect(codes(r)).toContain('cash-unusable');
   });
-  it('blocks inactive services and unavailable providers', () => {
-    expect(codes(priceLine(line({ serviceId: 'S5' }), data))).toContain('service-inactive');
+  it('prices a service switched off in the workbook: every service on the tab is offered (DECISIONS #32)', () => {
+    const r = priceLine(line({ serviceId: 'S5' }), data);
+    expect([r.ok, r.perVisitCents]).toEqual([true, 20000]);
+  });
+  it('blocks unknown services and unavailable providers', () => {
+    expect(codes(priceLine(line({ serviceId: 'S404' }), data))).toEqual(['unknown-service']);
     expect(codes(priceLine(line({ providerId: 'P6' }), data))).toContain('provider-unavailable');
     expect(codes(priceLine(line({ providerId: 'NOPE' }), data))).toContain('unknown-provider');
   });
@@ -221,8 +225,8 @@ describe('frequency', () => {
 });
 
 describe('pickers', () => {
-  it('lists one entry per active patient-facing name', () => {
-    expect(serviceNames(data)).toEqual(['ADHD Evaluation', 'Cash Only Service', 'Couples Counseling', 'Individual Counseling', 'Treatment Consult']);
+  it('lists one entry per patient-facing name, switched-off services included', () => {
+    expect(serviceNames(data)).toEqual(['ADHD Evaluation', 'Cash Only Service', 'Couples Counseling', 'Individual Counseling', 'TMS Session', 'Treatment Consult']);
   });
   it('resolves the Fee Schedule service by provider tier', () => {
     const psyd = data.providers.find((p) => p.id === 'P1')!;

@@ -45,9 +45,9 @@ describe('formFromLine: choices that are no longer valid', () => {
   const weekly: Frequency = { kind: 'weekly', perWeek: 1, weeks: 12 };
 
   it('a service no longer offered leaves everything empty except frequency', () => {
-    const r = formFromLine(line('TMS Session', 'P1', cash, weekly, 'S5'), data);
+    const r = formFromLine(line('Retired Service', 'P1', cash, weekly, 'S404'), data);
     expect(r.form).toMatchObject({ serviceName: '', providerId: '', payType: '', subPlan: '', mode: 'week', a: '1', b: '12' });
-    expect(r.stale.service).toContain('TMS Session');
+    expect(r.stale.service).toContain('Retired Service');
     expect(Object.keys(r.stale)).toEqual(['service']);
   });
 

@@ -36,7 +36,7 @@ export const demoData: EngineData = {
     { id: 'S-GRP', name: 'Group Counseling', active: true, perSession: true, cashPrice: 80, cashStatus: 'ok' },
     { id: 'S-MM', name: 'Medication Management', active: true, perSession: true, cashPrice: 175, cashStatus: 'ok' },
     { id: 'S-ADHD', name: 'ADHD Evaluation', active: true, perSession: false, cashPrice: 1800, cashStatus: 'ok' },
-    // Switched off in the workbook. TMS has an insurance rate, so it is still offered; IOP has none, so it stays hidden.
+    // Switched off in the workbook; still offered (every service on the tab is). TMS has an insurance rate; IOP has no price at all.
     { id: 'S-TMS', name: 'TMS Session', active: false, perSession: true, cashPrice: 300, cashStatus: 'ok' },
     { id: 'S-IOP', name: 'Intensive Outpatient Program', active: false, perSession: false, cashPrice: null, cashStatus: 'blank' },
   ],

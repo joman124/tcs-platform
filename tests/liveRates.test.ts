@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { LiveRatesError, payersWithoutColumns, withLiveFeeSchedule } from '../src/data/liveRates';
 import { parseWorkbook } from '../src/data/workbook';
-import { insuranceBillable, isOffered, priceLine, providersForService, serviceNames } from '../src/engine';
+import { insuranceBillable, priceLine, providersForService, serviceNames } from '../src/engine';
 import { feeRange, liveDirectory, unrenumberedDirectory } from './liveFixture';
 
 const NOW = new Date('2026-10-06');
@@ -41,12 +41,12 @@ describe('rates come live from the Fee Schedule', () => {
   });
 });
 
-describe('every insurance-billable service is offered', () => {
+describe('every service on the Services tab is offered (DECISIONS #32)', () => {
   it('a service switched off in the workbook but billable to insurance is listed and can be priced', () => {
     const d = load();
     const s4 = d.services.find((s) => s.id === 'S4')!;
     expect(s4.active).toBe(false);
-    expect([insuranceBillable(s4, d), isOffered(s4, d)]).toEqual([true, true]);
+    expect(insuranceBillable(s4, d)).toBe(true);
     expect(serviceNames(d)).toContain('Mislabeled Visit Service');
     expect(providersForService('Mislabeled Visit Service', d).map((p) => p.id)).toEqual(['P1']);
     // Aetna's doctoral cell on that row is quarantined, so Aetna is blocked; the service is still offered for other payers.
@@ -54,17 +54,19 @@ describe('every insurance-billable service is offered', () => {
     expect(r.issues.map((i) => i.code)).toContain('rate-unusable');
   });
 
-  it('a service switched off with no usable insurance rate stays hidden and cannot be priced', () => {
+  it('a service switched off with no insurance rate is listed too: cash prices from the sheet, insurance says why not', () => {
     const d = load();
     const s5 = d.services.find((s) => s.id === 'S5')!;
-    expect(isOffered(s5, d)).toBe(false);
-    expect(serviceNames(d)).not.toContain('Package Service');
-    const r = priceLine({ serviceId: 'S5', providerId: 'P1', payment: { type: 'cash' }, frequency: weekly4 }, d);
-    expect(r.issues.map((i) => i.code)).toEqual(['service-inactive']);
+    expect([s5.active, insuranceBillable(s5, d)]).toEqual([false, false]);
+    expect(serviceNames(d)).toContain('Package Service');
+    const cash = priceLine({ serviceId: 'S5', providerId: 'P1', payment: { type: 'cash' }, frequency: weekly4 }, d);
+    expect([cash.ok, cash.perVisitCents]).toEqual([true, 90000]); // column H of the package row
+    const ins = priceLine({ serviceId: 'S5', providerId: 'P1', payment: { type: 'insurance', subPlan: 'Aetna Commercial' }, frequency: weekly4 }, d);
+    expect([ins.ok, ins.cashFallbackAvailable]).toEqual([false, true]);
   });
 
-  it('active services are offered whatever their rates', () => {
-    expect(serviceNames(load())).toEqual(['ADHD Evaluation', 'Couples Counseling', 'Individual Counseling', 'Mislabeled Visit Service']);
+  it('every row on the tab is listed, whatever its "Active in estimator" flag or rates', () => {
+    expect(serviceNames(load())).toEqual(['ADHD Evaluation', 'Couples Counseling', 'Individual Counseling', 'Mislabeled Visit Service', 'Package Service']);
   });
 });
 

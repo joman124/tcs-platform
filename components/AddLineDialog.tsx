@@ -187,6 +187,11 @@ export function AddLineDialog({ data, initial, onSave, onClose }: { data: Engine
                 ))}
               </select>
               {staleNote('provider', !providerId)}
+              {serviceName && providers.length === 0 && (
+                <p className="note" data-testid="no-providers">
+                  No active provider offers this service in the directory. Link one on the workbook&apos;s ProviderServices tab, or use Custom service.
+                </p>
+              )}
             </div>
           </div>
         )}

@@ -24,9 +24,9 @@ export const liveDirectory = (): Sheets => ({
     ['S2', 'Couples', 'Couples Counseling', '90847', '1 hr', 'Y', 11, '', '', 'One line', '', 'Y', 225, null],
     // ADHD Evaluation: visit row 5 (cash $300 on the sheet)
     ['S3', 'Eval', 'ADHD Evaluation', '90791', '', 'Y', 5, '', '', 'One line', '', 'N', null, null],
-    // Switched off in the workbook but billable to insurance (visit row 13): offered anyway
+    // Switched off in the workbook but billable to insurance (visit row 13)
     ['S4', 'Other', 'Mislabeled Visit Service', '90837', '', 'N', 13, '', '', 'One line', '', 'Y', null, null],
-    // Switched off with no insurance rate (visit row 4 is a package row with no rate cells): not offered
+    // Switched off with no insurance rate (visit row 4 is a package row with no rate cells)
     ['S5', 'Package', 'Package Service', 'PKGXX', '', 'N', 4, '', '', 'One line', '', 'N', null, null],
   ],
   ServiceComponents: [

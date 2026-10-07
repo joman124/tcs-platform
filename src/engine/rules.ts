@@ -70,7 +70,10 @@ export function resolveFrequency(freq: Frequency): Sessions | { error: Issue } {
 // Billable service IDs per rates array, so the pickers do not rescan every rate on each render.
 const billableCache = new WeakMap<EngineData['rates'], Set<string>>();
 
-/** At least one usable contracted rate for some payer and tier. Quarantined payers (Medicare) and unusable cells do not count. */
+/**
+ * At least one usable contracted rate for some payer and tier. Quarantined payers (Medicare) and unusable cells do not
+ * count. Reported on the diagnostics page; it no longer decides what the picker offers.
+ */
 export function insuranceBillable(service: Service, data: EngineData): boolean {
   let ids = billableCache.get(data.rates);
   if (!ids) {
@@ -81,14 +84,12 @@ export function insuranceBillable(service: Service, data: EngineData): boolean {
 }
 
 /**
- * Offered in the estimator: every service billable to insurance, whatever its "Active in estimator" flag, plus services
- * switched on in the workbook (e.g. cash-only ones). User decision 2026-10-06.
+ * Services listed in the dropdown: one entry per patient-facing name, for every service on the workbook's Services tab,
+ * whatever its "Active in estimator" flag (user decision 2026-10-07, DECISIONS #32). A service with no usable price still
+ * appears; its line shows why it cannot be priced.
  */
-export const isOffered = (service: Service, data: EngineData): boolean => service.active || insuranceBillable(service, data);
-
-/** Services listed in the dropdown: one entry per offered patient-facing name. */
 export function serviceNames(data: EngineData): string[] {
-  return [...new Set(data.services.filter((s) => isOffered(s, data)).map((s) => s.name))].sort();
+  return [...new Set(data.services.map((s) => s.name))].sort();
 }
 
 /**
@@ -99,7 +100,6 @@ export function resolveService(name: string, provider: Provider, data: EngineDat
   const tier = tierOf(provider.credential);
   return data.services.find(
     (s) =>
-      isOffered(s, data) &&
       s.name === name &&
       (!s.allowedTiers || (tier !== null && s.allowedTiers.includes(tier))) &&
       data.providerServices.some((ps) => ps.providerId === provider.id && ps.serviceId === s.id),
@@ -179,7 +179,6 @@ export function priceLine(input: LineInput, data: EngineData): LineResult {
   }
   const service = data.services.find((s) => s.id === input.serviceId);
   if (!service) return blocked([block('unknown-service', 'Service not found.')]);
-  if (!isOffered(service, data)) return blocked([block('service-inactive', 'Service is not active in the estimator and has no insurance rate.')]);
   if (!data.providerServices.some((ps) => ps.providerId === provider.id && ps.serviceId === service.id)) {
     return blocked([block('not-offered', 'This provider does not offer this service.')]);
   }

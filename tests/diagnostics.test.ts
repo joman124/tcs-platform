@@ -57,7 +57,7 @@ describe('runDiagnostics', () => {
     const r = await runDiagnostics(d);
     expect(r.missingRequired).toEqual([]);
     expect(r.workbook.ok && r.workbook.value.missing).toEqual([]);
-    expect(r.workbook.ok && r.workbook.value.parsed).toEqual({ ok: true, value: { providers: 3, services: 5, offered: 4, plans: 2 } });
+    expect(r.workbook.ok && r.workbook.value.parsed).toEqual({ ok: true, value: { providers: 3, services: 5, offered: 5, billable: 4, plans: 2 } });
     expect(r.feeSchedule).toMatchObject({ ok: true, value: { headerRow: 1, firstDataRow: 4, missingPayers: ['Unknown'] } });
     expect(r.feeSchedule.ok && r.feeSchedule.value.visits).toBeGreaterThan(0);
     expect(r.log).toEqual({ ok: true, value: { status: 200 } });
