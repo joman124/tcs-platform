@@ -48,25 +48,7 @@ Copy `id` (three parts separated by commas: host name, then two long IDs). This 
 ## 3. Upload the workbook and find its IDs
 
 1. **Make sure it is the latest build.** It must have a `Services` tab whose column N is headed **"Allowed tiers"**. Older copies price counseling wrongly; the app now refuses to load them and names the missing column. If unsure, ask for the latest file to be re-sent.
-2. **Renumber the Fee Schedule rows by −3 (once).** The workbook's row numbers came from the Phase 1 read, which counted 3 rows too many (decided 2026-10-05; see `docs/fee-schedule-sync.md`). Subtract 3 from the numbers in these four columns, and nothing else:
-
-   | Tab | Column |
-   |---|---|
-   | `FeeRates` | Visit row |
-   | `ServiceComponents` | Visit row (Fee Schedule parent row) |
-   | `Services` | Cash price row (Fee Schedule) |
-   | `CashPrices` | Fee Schedule row |
-
-   In Excel, for each column:
-   1. Type `-3` in any empty cell outside the tables and copy it (Ctrl+C).
-   2. Click the **first number** under the column header, then press **Ctrl+Shift+Down** to select down to the last filled cell. **Select only filled cells:** Excel turns a selected blank cell into −3. If the column has gaps, do each filled block separately.
-   3. Right-click → **Paste Special** → Paste: **Values**, Operation: **Add** → OK.
-
-   Then delete the `-3` helper cell and check:
-   - In `FeeRates`, the first **Interview** (90791) row's Visit row now reads **5** (it read 8 before).
-   - In each of the four columns, no cell reads −3 or less, and none of the other columns changed.
-
-   The `FeeRates` "Source cell" text (e.g. `N25`) is only a note for people; the app does not read it, and the Fee Schedule sync rewrites it later. Leave it.
+2. **Upload it as it is: no renumbering.** Its Fee Schedule row numbers are still on the old Phase 1 numbering (3 higher than the sheet). The app detects this and corrects it automatically when it loads (`DECISIONS.md` #34), and `/diagnostics` says so. Do not change the Visit row or Cash price row columns. A copy that was already renumbered by hand also works.
 3. Open it once in Excel (desktop or web) and confirm no cell shows an error. Save.
 4. Upload `MHCA-Provider-Directory.xlsx` to the new site's **Documents** library (top level), using the browser.
 
@@ -215,7 +197,6 @@ Reply with this list filled in. **Do not include any secret or ID value**; "set"
 
 - Site chosen: dedicated "MHCA Estimator" site, or CorporateDrive
 - Workbook uploaded, and the step 3c check shows "Allowed tiers": yes / no
-- Fee Schedule rows renumbered by −3 (first Interview visit row reads 5): yes / no
 - Excel opened, no errors: yes / no
 - Log list created and permissions limited to billing leadership: yes / no
 - Admin confirmed: app is single tenant with the redirect URI; `Sites.Selected` with admin consent; **write** on the estimator site (or read/write on the two sites); **read** on the Billing site (required: live rates); secret expiry date

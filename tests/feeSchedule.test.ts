@@ -275,11 +275,11 @@ describe('diffFeeRates', () => {
     expect([d.changed.length, d.added.length, d.removed.length]).toEqual([0, 0, 0]);
     const text = formatDiffReport(run().report, d);
     expect(text).toMatch(/line up with the sheet only when shifted by -3 \(detected\)/);
-    expect(text).toContain('The workbook has not been renumbered yet');
+    expect(text).toContain('The app corrects this automatically');
   });
 
   it('any other offset is flagged as unexpected, and none once the workbook is renumbered', () => {
-    expect(formatDiffReport(run().report, diffFeeRates(asCurrent(-3), synced()))).toContain('it may have been renumbered twice');
+    expect(formatDiffReport(run().report, diffFeeRates(asCurrent(-3), synced()))).toContain('renumbered by hand more than once');
     expect(formatDiffReport(run().report, diffFeeRates(asCurrent(), synced()))).not.toContain('WARNING: the current FeeRates');
   });
 

@@ -114,9 +114,10 @@ describe('runDiagnostics', () => {
     expect(r.workbook.ok && r.workbook.value.parsed).toMatchObject({ ok: false, error: expect.stringContaining('Billing Department') });
   });
 
-  it('a workbook that has not been renumbered is reported as such', async () => {
+  it('a workbook on the old numbering parses, and the automatic correction is reported', async () => {
     const old = unrenumberedDirectory();
     const r = await runDiagnostics(deps({ readSheet: async (n) => old[n]! }));
-    expect(r.workbook.ok && r.workbook.value.parsed).toMatchObject({ ok: false, error: expect.stringContaining('3 higher') });
+    expect(r.workbook.ok && r.workbook.value.parsed.ok).toBe(true);
+    expect(r.feeSchedule).toMatchObject({ ok: true, value: { rowShift: -3 } });
   });
 });

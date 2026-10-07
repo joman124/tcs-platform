@@ -12,7 +12,7 @@ Unattended work on branch `claude/kind-euler-50msb6`, PR https://github.com/joma
 - **Release safety:** `vercel.json` stops automatic production deploys from `main` (**only once PR #5 is merged**). `next-auth` pinned to `5.0.0-beta.32`.
 - **Workbook version check:** an older workbook (e.g. no `Services` "Allowed tiers") is refused with a message naming the missing tab/column, instead of mispricing.
 - **`/diagnostics`** (signed-in only, absent in demo mode): settings by name, workbook row counts, log-list reachability (read only), load time. Real-data checklist: `docs/phase5-checklist.md`.
-- **Fee Schedule sync engine + dry-run diff** (`npm run fee-schedule-diff`, writes nothing): `docs/fee-schedule-sync.md`. **Finding:** the live sheet's data starts at **row 4**, not row 7; Phase 1 row numbers (and the workbook's visit and cash-price row keys) are 3 higher. **Decided: renumber the workbook by −3** (setup checklist §3 step 2). Confirmed by reading the Billing Fee Schedule once, read-only: all 25 Phase 1 quarantines reproduce exactly.
+- **Fee Schedule sync engine + dry-run diff** (`npm run fee-schedule-diff`, writes nothing): `docs/fee-schedule-sync.md`. **Finding:** the live sheet's data starts at **row 4**, not row 7; Phase 1 row numbers (and the workbook's visit and cash-price row keys) are 3 higher. **Decided (#34): the app corrects the −3 in memory; the workbook is uploaded unchanged.** Confirmed by reading the Billing Fee Schedule once, read-only: all 25 Phase 1 quarantines reproduce exactly.
 - **Setup guide:** `docs/SETUP-CHECKLIST.md` (fixes issue 9).
 - **Stretch:** 12-month log retention (built, **off**, no cron scheduled); dialog focus management; the e2e run no longer rewrites the sample PDF.
 
@@ -62,7 +62,7 @@ Step-by-step guide with every known ID filled in: **[`docs/SETUP-CHECKLIST.md`](
 6. **Vercel variables** (Production and Preview, secrets as Sensitive): `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AUTH_SECRET`, `DIRECTORY_DRIVE_ID`, `DIRECTORY_ITEM_ID`, `LOG_SITE_ID`, `LOG_LIST_ID`. The user sets the secrets; they must never be pasted into chat. Redeploy afterward. Demo mode turns itself off once real settings exist.
 7. **Open Excel once** and confirm the workbook shows no errors (formulas were never recalculated here).
 8. Small answers: spelling of **Denish** Gusich (earlier "Denise"); postdoc first names; logo file (deferred).
-9. **Done (2026-10-05):** PR #5 merged; morning questions answered (`DECISIONS.md` #23–28). **Before uploading the workbook, renumber its Fee Schedule row columns by −3** (`docs/SETUP-CHECKLIST.md` §3 step 2). Still open: confirm the sync's handling of Neurofeedback, the unlabelled KAP row, "(on hold)" and "(optional)" rows.
+9. **Done (2026-10-05):** PR #5 merged; morning questions answered (`DECISIONS.md` #23–28). The −3 renumbering is no longer a manual step: the app corrects it when it loads (`DECISIONS.md` #34). Still open: confirm the sync's handling of Neurofeedback, the unlabelled KAP row, "(on hold)" and "(optional)" rows.
 10. **Required (2026-10-06):** ask the MHCA admin for a **read** grant on the Billing site as well; the app now reads its rates there live (in the admin message in `docs/SETUP-CHECKLIST.md` §5).
 
 ### Needs other people
@@ -71,7 +71,7 @@ Step-by-step guide with every known ID filled in: **[`docs/SETUP-CHECKLIST.md`](
 
 ### Next engineering (state after 2026-10-05)
 1. **Still open; tooling ready.** `/diagnostics` and `docs/phase5-checklist.md` exist. Once data is connected: **point a preview at real data and run the Phase 5 checks** (the real Graph read, Entra sign-in, and SharePoint log write have never been exercised). Verification checklist is in the previous chat reply (Aetna PsyD individual $137.75; Dr. Lee cash $195; couples cash $225; Medicare blocked; one log row per printed line with no name).
-2. **Done: the app reads rates live from the Fee Schedule** (2026-10-06; `src/data/liveRates.ts`, `docs/fee-schedule-sync.md`), with checks that refuse an unrenumbered workbook. Every service on the Services tab is offered (DECISIONS #32); custom line items are available (#31). Needs the Billing-site read grant.
+2. **Done: the app reads rates live from the Fee Schedule** (2026-10-06; `src/data/liveRates.ts`, `docs/fee-schedule-sync.md`), with checks that correct the old −3 numbering automatically and refuse any other mismatch. Every service on the Services tab is offered (DECISIONS #32); custom line items are available (#31). Needs the Billing-site read grant.
 3. **Figma:** build frame B (patient copy), the add-line modal, and visually re-check frame A. The Figma MCP is limited to 20 calls per month on the Starter plan and the limit was used up in October 2026. It resets monthly, or upgrade to a Full or Dev seat.
 4. **Production release** needs the user's explicit approval. Automatic production deploys from `main` are turned off by `vercel.json` once PR #5 merges.
 5. Log pruning: **built, and stays off** (user decision 2026-10-05; `docs/estimate-log-sharepoint.md` says how to turn it on). `next-auth`: **pinned** to 5.0.0-beta.32; re-check before release. New: `npm audit` flags PostCSS inside Next (fix is Next 16, a major upgrade): **planned separately**, `docs/next16-upgrade-plan.md`. The user approves PRs and releases.

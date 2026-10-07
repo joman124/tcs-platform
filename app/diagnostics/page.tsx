@@ -96,6 +96,7 @@ export default async function Diagnostics() {
           <p>
             Header row {r.feeSchedule.value.headerRow}, data from row {r.feeSchedule.value.firstDataRow}: {r.feeSchedule.value.visits} visits, {r.feeSchedule.value.usable} usable rate cells, {r.feeSchedule.value.quarantined} quarantined, {r.feeSchedule.value.ambiguous} Medicare (on hold).
             {r.feeSchedule.value.missingPayers.length > 0 && ` Payers in the workbook with no Fee Schedule column (always blocked): ${r.feeSchedule.value.missingPayers.join(', ')}.`}
+            {r.feeSchedule.value.rowShift !== 0 && ` The workbook's row numbers are on the old numbering (3 higher than the sheet); the app corrects them automatically, so no change to the workbook is needed.`}
           </p>
         ) : (
           <p>Read, but not checked against the workbook (see the workbook result above).</p>

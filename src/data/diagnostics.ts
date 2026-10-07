@@ -63,7 +63,7 @@ export interface DiagnosticsReport {
   missingRequired: string[];
   workbook: Check<{ tabs: TabCount[]; missing: MissingPart[]; parsed: Check<{ providers: number; services: number; offered: number; billable: number; plans: number }> }>;
   /** The live Fee Schedule: layout found, cell counts, and PayerKey payers with no column on the sheet. */
-  feeSchedule: Check<{ headerRow: number; firstDataRow: number; visits: number; usable: number; quarantined: number; ambiguous: number; missingPayers: string[] }>;
+  feeSchedule: Check<{ headerRow: number; firstDataRow: number; visits: number; usable: number; quarantined: number; ambiguous: number; missingPayers: string[]; rowShift: number }>;
   log: Check<{ status: number }> | { ok: null; reason: string };
   loaded: Check<{ loadedAt: string; source: string }>;
 }
@@ -96,7 +96,7 @@ export async function runDiagnostics(deps: DiagnosticsDeps): Promise<Diagnostics
   else {
     try {
       fee = await deps.readFeeSchedule();
-      feeSchedule = { ok: true, value: { headerRow: 0, firstDataRow: 0, visits: 0, usable: 0, quarantined: 0, ambiguous: 0, missingPayers: [] } };
+      feeSchedule = { ok: true, value: { headerRow: 0, firstDataRow: 0, visits: 0, usable: 0, quarantined: 0, ambiguous: 0, missingPayers: [], rowShift: 0 } };
     } catch (e) {
       feeSchedule = { ok: false, error: errorText(e) };
     }
@@ -117,7 +117,7 @@ export async function runDiagnostics(deps: DiagnosticsDeps): Promise<Diagnostics
         if (!fee) throw new Error(feeSchedule.ok ? 'The Fee Schedule was not read.' : feeSchedule.error);
         const live = withLiveFeeSchedule(sheets, fee);
         const r = live.report;
-        feeSchedule = { ok: true, value: { headerRow: r.headerRow, firstDataRow: r.firstDataRow, visits: r.visits, usable: r.usable, quarantined: r.quarantined.length, ambiguous: r.ambiguous, missingPayers: payersWithoutColumns(sheets, r) } };
+        feeSchedule = { ok: true, value: { headerRow: r.headerRow, firstDataRow: r.firstDataRow, visits: r.visits, usable: r.usable, quarantined: r.quarantined.length, ambiguous: r.ambiguous, missingPayers: payersWithoutColumns(sheets, r), rowShift: live.rowShift } };
         const d = parseWorkbook(live.sheets, deps.now);
         parsed = { ok: true, value: { providers: d.providers.length, services: d.services.length, offered: serviceNames(d).length, billable: d.services.filter((s) => insuranceBillable(s, d)).length, plans: d.planMap.length } };
       } catch (e) {

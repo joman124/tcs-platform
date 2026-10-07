@@ -28,22 +28,38 @@ function column(sheet: unknown[][] | undefined, startsWith: string): number {
   return header.findIndex((h) => h.startsWith(startsWith));
 }
 
+/** The Phase 1 snapshot numbered every Fee Schedule row 3 higher than the sheet (docs/fee-schedule-sync.md). */
+const PHASE1_OFFSET = -3;
+
+/** A copy of `sheet` with `delta` added to every number in the column whose header starts with `header`. */
+function shiftColumn(sheet: unknown[][], header: string, delta: number): unknown[][] {
+  const i = column(sheet, header);
+  if (i < 0) return sheet;
+  return sheet.map((r, n) => (n === 0 ? r : r.map((v, j) => (j === i && str(v) !== '' && Number.isFinite(Number(v)) ? Number(v) + delta : v))));
+}
+
 /**
- * Directory sheets with FeeRates and CashPrices rebuilt from the live Fee Schedule. Refuses (LiveRatesError) when the
- * workbook's row numbers do not line up with the sheet, since every visit and cash-price lookup is keyed by row.
+ * Directory sheets with FeeRates and CashPrices rebuilt from the live Fee Schedule. Every visit and cash-price lookup is
+ * keyed by row, so the workbook's row numbers must line up with the sheet. A workbook still on the Phase 1 numbering
+ * (exactly 3 high, detected from its own FeeRates tab) is corrected in memory (`rowShift: -3`; DECISIONS #34); any other
+ * offset is refused (LiveRatesError). Nothing is written back to the workbook.
  */
-export function withLiveFeeSchedule(sheets: Sheets, fee: FeeScheduleRange): { sheets: Sheets; report: SyncReport } {
+export function withLiveFeeSchedule(sheets: Sheets, fee: FeeScheduleRange): { sheets: Sheets; report: SyncReport; rowShift: number } {
   const { startRow, startCol } = parseAddress(fee.address);
   const sync = syncFeeSchedule(fee.values as Cell[][], { startRow, startCol });
 
-  // 1. Row numbering: the workbook's own FeeRates snapshot must line up with the sheet (the Phase 1 snapshot was 3 rows high).
+  // 1. Row numbering, checked against the workbook's own FeeRates snapshot.
+  let rowShift = 0;
   if (sheets.FeeRates && sheets.FeeRates.length > 1) {
     const d = diffFeeRates(readCurrentFeeRates(sheets.FeeRates as Cell[][]), sync.feeRates);
-    if (d.rowOffset !== 0) {
+    if (d.rowOffset === PHASE1_OFFSET) {
+      rowShift = PHASE1_OFFSET;
+      sheets = { ...sheets };
+      if (sheets.ServiceComponents) sheets.ServiceComponents = shiftColumn(sheets.ServiceComponents, 'Visit row', rowShift);
+      if (sheets.Services) sheets.Services = shiftColumn(sheets.Services, 'Cash price row', rowShift);
+    } else if (d.rowOffset !== 0) {
       throw new LiveRatesError(
-        d.rowOffset === -3
-          ? "The directory workbook's Fee Schedule row numbers are 3 higher than the Fee Schedule, so its services would point at the wrong rows. Renumber the workbook first (docs/SETUP-CHECKLIST.md, step 3.2)."
-          : `The directory workbook's Fee Schedule row numbers do not line up with the Fee Schedule (off by ${-d.rowOffset}). Check the renumbering (docs/SETUP-CHECKLIST.md, step 3.2).`,
+        `The directory workbook's Fee Schedule row numbers do not line up with the Fee Schedule (off by ${-d.rowOffset}; only the original 3-row difference is corrected automatically). Check the workbook's Visit row and Cash price row columns.`,
       );
     }
   }
@@ -71,7 +87,7 @@ export function withLiveFeeSchedule(sheets: Sheets, fee: FeeScheduleRange): { sh
     throw new LiveRatesError(`The directory workbook points at Fee Schedule rows that are not visits on the sheet: ${problems.join('; ')}. Correct those rows in the workbook.`);
   }
 
-  return { sheets: { ...sheets, FeeRates: toFeeRatesSheet(sync.feeRates) as unknown[][], CashPrices: toCashPricesSheet(sync.cashPrices) as unknown[][] }, report: sync.report };
+  return { sheets: { ...sheets, FeeRates: toFeeRatesSheet(sync.feeRates) as unknown[][], CashPrices: toCashPricesSheet(sync.cashPrices) as unknown[][] }, report: sync.report, rowShift };
 }
 
 /** PayerKey payers that have no column on the Fee Schedule: their insurance lines would always be blocked. */

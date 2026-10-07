@@ -71,9 +71,23 @@ describe('every service on the Services tab is offered (DECISIONS #32)', () => {
 });
 
 describe('the two spreadsheets must line up', () => {
-  it('refuses a workbook that has not been renumbered, instead of pricing from the wrong rows', () => {
-    expect(() => load(unrenumberedDirectory())).toThrow(LiveRatesError);
-    expect(() => load(unrenumberedDirectory())).toThrow(/3 higher than the Fee Schedule.*step 3\.2/);
+  it('corrects a workbook still on the old numbering (3 high) in memory: it prices exactly like a renumbered one', () => {
+    const old = withLiveFeeSchedule(unrenumberedDirectory(), feeRange());
+    expect(old.rowShift).toBe(-3);
+    expect(withLiveFeeSchedule(liveDirectory(), feeRange()).rowShift).toBe(0);
+    const a = load(unrenumberedDirectory());
+    const b = load();
+    expect(a.rates).toEqual(b.rates);
+    expect(a.services).toEqual(b.services);
+    const r = priceLine({ serviceId: 'S3', providerId: 'P1', payment: { type: 'insurance', subPlan: 'Aetna Commercial' }, frequency: { kind: 'total', sessions: 1 } }, a);
+    expect([r.ok, r.perVisitCents]).toEqual([true, 32000]);
+  });
+
+  it('a half-done renumbering (FeeRates renumbered, a service row not) is still caught', () => {
+    const d = liveDirectory();
+    d.ServiceComponents = d.ServiceComponents!.map((r, i) => (i === 0 || r[0] !== 'S3' ? r : [r[0], Number(r[1]) + 3, ...r.slice(2)]));
+    expect(() => load(d)).toThrow(LiveRatesError);
+    expect(() => load(d)).toThrow(/service S3 uses visit row 8/);
   });
 
   it('refuses any other row offset', () => {
@@ -143,9 +157,11 @@ describe('the loader reads both spreadsheets through Graph (mocked)', () => {
     await expect(loadData(true)).rejects.toThrow(/needs read access to the Billing Department site/);
   });
 
-  it('an unrenumbered workbook stops the load', async () => {
+  it('a workbook on the old numbering loads and prices from the right rows', async () => {
     fakeGraph(200, unrenumberedDirectory());
     const { loadData } = await import('../src/data/load');
-    await expect(loadData(true)).rejects.toThrow(/3 higher than the Fee Schedule/);
+    const { data } = await loadData(true);
+    expect(rate(data as ReturnType<typeof load>, 'S1', 'Aetna', 'T1').total).toBe(100);
+    expect(rate(data as ReturnType<typeof load>, 'S3', 'Aetna', 'T1').total).toBe(320);
   });
 });
