@@ -29,6 +29,8 @@ npm run typecheck
 8. Rate = ContractedRate for service x payer x provider tier. Missing, DNB, blank, quarantined or $0 blocks (cash offered).
 9. Stale payer rates add an admin-only info issue. Issues are never printed on the patient copy.
 
+**Custom lines** (`payment: { type: 'custom', perVisitCents }`, service id `CUSTOM_SERVICE_ID` = `CUSTOM`) skip rules 1 and 3–9: the admin's typed price is used as is. The provider is optional (`providerId: ''`); a named provider must exist and be Active. The price must be whole cents from $0.01 to $100,000 (`CUSTOM_MAX_CENTS`). Frequency (rule 2) and the cost views apply as for any line. The line's description is its service name in the UI; it is printed but never logged.
+
 ## Cost views
 
 All figures come from priced lines only. Blocked lines are excluded and `canPrint` is false while any line is blocked (or there are no lines).

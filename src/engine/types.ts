@@ -108,10 +108,20 @@ export type Frequency =
   | { kind: 'total'; sessions: number; /** weeks the sessions are spread over (needed for weekly/monthly views) */ spanWeeks?: number }
   | { kind: 'weekly'; perWeek: number; weeks: number };
 
-export type Payment = { type: 'cash' } | { type: 'insurance'; subPlan: string };
+/**
+ * `custom`: a service the admin types in with their own price per visit (not from the directory). Its description is the
+ * line's service name, which is printed but never logged.
+ */
+export type Payment = { type: 'cash' } | { type: 'insurance'; subPlan: string } | { type: 'custom'; perVisitCents: number };
+
+/** Service id every custom line carries, in the engine and in the log. Never a directory service id. */
+export const CUSTOM_SERVICE_ID = 'CUSTOM';
+/** Highest price per visit a custom line accepts: $100,000, the log's limit. */
+export const CUSTOM_MAX_CENTS = 10_000_000;
 
 export interface LineInput {
   serviceId: string;
+  /** '' on a custom line with no specific provider. */
   providerId: string;
   payment: Payment;
   frequency: Frequency;

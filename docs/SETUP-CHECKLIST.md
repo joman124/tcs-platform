@@ -48,25 +48,7 @@ Copy `id` (three parts separated by commas: host name, then two long IDs). This 
 ## 3. Upload the workbook and find its IDs
 
 1. **Make sure it is the latest build.** It must have a `Services` tab whose column N is headed **"Allowed tiers"**. Older copies price counseling wrongly; the app now refuses to load them and names the missing column. If unsure, ask for the latest file to be re-sent.
-2. **Renumber the Fee Schedule rows by −3 (once).** The workbook's row numbers came from the Phase 1 read, which counted 3 rows too many (decided 2026-10-05; see `docs/fee-schedule-sync.md`). Subtract 3 from the numbers in these four columns, and nothing else:
-
-   | Tab | Column |
-   |---|---|
-   | `FeeRates` | Visit row |
-   | `ServiceComponents` | Visit row (Fee Schedule parent row) |
-   | `Services` | Cash price row (Fee Schedule) |
-   | `CashPrices` | Fee Schedule row |
-
-   In Excel, for each column:
-   1. Type `-3` in any empty cell outside the tables and copy it (Ctrl+C).
-   2. Click the **first number** under the column header, then press **Ctrl+Shift+Down** to select down to the last filled cell. **Select only filled cells:** Excel turns a selected blank cell into −3. If the column has gaps, do each filled block separately.
-   3. Right-click → **Paste Special** → Paste: **Values**, Operation: **Add** → OK.
-
-   Then delete the `-3` helper cell and check:
-   - In `FeeRates`, the first **Interview** (90791) row's Visit row now reads **5** (it read 8 before).
-   - In each of the four columns, no cell reads −3 or less, and none of the other columns changed.
-
-   The `FeeRates` "Source cell" text (e.g. `N25`) is only a note for people; the app does not read it, and the Fee Schedule sync rewrites it later. Leave it.
+2. **Upload it as it is: no renumbering.** Its Fee Schedule row numbers are still on the old Phase 1 numbering (3 higher than the sheet). The app detects this and corrects it automatically when it loads (`DECISIONS.md` #34), and `/diagnostics` says so. Do not change the Visit row or Cash price row columns. A copy that was already renumbered by hand also works.
 3. Open it once in Excel (desktop or web) and confirm no cell shows an error. Save.
 4. Upload `MHCA-Provider-Directory.xlsx` to the new site's **Documents** library (top level), using the browser.
 
@@ -120,7 +102,7 @@ POST https://graph.microsoft.com/v1.0/sites/<SITE-ID>/lists
     { "name": "EstimateDate", "dateTime": { "format": "dateOnly" }, "indexed": true },
     { "name": "ServiceId", "text": {} },
     { "name": "ProviderId", "text": {} },
-    { "name": "PaymentType", "choice": { "choices": ["cash", "insurance"], "displayAs": "dropDownMenu" } },
+    { "name": "PaymentType", "choice": { "choices": ["cash", "insurance", "custom"], "displayAs": "dropDownMenu" } },
     { "name": "Payer", "text": {} },
     { "name": "PerVisit", "number": { "decimalPlaces": "two", "minimum": 0 } },
     { "name": "Sessions", "number": { "decimalPlaces": "none", "minimum": 1 } },
@@ -153,14 +135,14 @@ You said an MHCA admin already gave consent; this step confirms exactly what is 
 >    ```
 >
 >    or in PnP PowerShell: `Grant-PnPAzureADAppSitePermission -AppId <APPLICATION (CLIENT) ID> -DisplayName "MHCA Treatment Plan Estimator" -Site <site web address> -Permissions Write` (newer PnP versions call it `Grant-PnPEntraIDAppSitePermission`)
-> 4. Optional, for the Fee Schedule price check: **read** on the Billing Department site, the same way with `"roles": ["read"]`.
+> 4. **Read** on the Billing Department site, the same way with `"roles": ["read"]`. The app reads its insurance rates and cash prices live from the Fee Schedule there; without this grant it shows "not ready".
 > 5. Create a **client secret** (Certificates & secrets) and give it to me in person or through our password manager, not by email or chat. Please tell me its expiry date.
 >
 > Thank you.
 
 **(CorporateDrive or two sites)** If the workbook and the log list are on different sites, ask for **read** on the workbook's site and **write** on the log list's site instead.
 
-Find the Billing site ID for item 4 with:
+Find the Billing site ID for item 4 (required) with:
 
 ```
 GET https://graph.microsoft.com/v1.0/drives/b!5tnb6bLSWU2cr0Fyqdme8sr-r_CXXlJCv_nIcpkR8cYC3SF8On0DTaP4Asyu0SBf/root?$select=webUrl,parentReference
@@ -215,10 +197,9 @@ Reply with this list filled in. **Do not include any secret or ID value**; "set"
 
 - Site chosen: dedicated "MHCA Estimator" site, or CorporateDrive
 - Workbook uploaded, and the step 3c check shows "Allowed tiers": yes / no
-- Fee Schedule rows renumbered by −3 (first Interview visit row reads 5): yes / no
 - Excel opened, no errors: yes / no
 - Log list created and permissions limited to billing leadership: yes / no
-- Admin confirmed: app is single tenant with the redirect URI; `Sites.Selected` with admin consent; **write** on the estimator site (or read/write on the two sites); optional read on Billing; secret expiry date
+- Admin confirmed: app is single tenant with the redirect URI; `Sites.Selected` with admin consent; **write** on the estimator site (or read/write on the two sites); **read** on the Billing site (required: live rates); secret expiry date
 - Vercel Production variables set (one line each): `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AUTH_SECRET`, `DIRECTORY_DRIVE_ID`, `DIRECTORY_ITEM_ID`, `LOG_SITE_ID`, `LOG_LIST_ID`
 - `/diagnostics` result: the Settings, Directory workbook, Estimate log list and Loaded data lines (OK / Problem, and any message shown)
 - Small answers: spelling of **Denish** Gusich; first names of Dr. Lee, Dr. Nine and Dr. Arbuckle-Washington; logo file (when available)

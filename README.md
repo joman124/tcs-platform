@@ -3,14 +3,14 @@
 An administrator builds a patient's treatment-plan cost estimate, then prints a clean patient copy (weekly, monthly and full-plan cost).
 
 - **Engine** (`src/engine`): pricing and rules, pure TypeScript. See `docs/engine.md`.
-- **Data** (`src/data`): reads the provider directory workbook from SharePoint through Microsoft Graph (server-side, read-only, 5-minute cache plus a "Refresh data" button), and writes de-identified log rows to a SharePoint list.
+- **Data** (`src/data`): reads the provider directory workbook and, for rates and cash prices, the Billing Fee Schedule from SharePoint through Microsoft Graph (server-side, read-only, 5-minute cache plus a "Refresh data" button), and writes de-identified log rows to a SharePoint list.
 - **App** (`app`, `components`): Next.js. Microsoft sign-in restricted to the MHCA tenant.
 - **Decisions and assumptions**: `DECISIONS.md`.
 - **Session handoff** (status, open items, issues, where things live): `docs/HANDOFF.md`.
 
 ## Privacy
 
-The estimate (including the patient name) lives only in browser memory. Nothing is saved to localStorage, cookies, IndexedDB or the server, and a reload, a new tab or 15 idle minutes start blank. After printing, only de-identified line figures (service, provider, payer, amounts, no name, no free text) are sent to the log, and the server rejects any other field.
+The estimate (including the patient name) lives only in browser memory. Nothing is saved to localStorage, cookies, IndexedDB or the server, and a reload, a new tab or 15 idle minutes start blank. After printing, only de-identified line figures (service, provider, payer, amounts, no name, no free text) are sent to the log, and the server rejects any other field. A custom line's typed description prints on the patient copy but is logged only as service `CUSTOM`.
 
 ## Setup
 

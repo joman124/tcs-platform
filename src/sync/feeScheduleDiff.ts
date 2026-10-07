@@ -135,9 +135,9 @@ export function formatDiffReport(report: SyncReport, diff: FeeRatesDiff, limit =
     L.push(
       `WARNING: the current FeeRates visit rows line up with the sheet only when shifted by ${diff.rowOffset > 0 ? '+' : ''}${diff.rowOffset}${diff.rowOffsetDetected ? ' (detected)' : ' (given)'}. ` +
         (diff.rowOffset === -3
-          ? 'The workbook has not been renumbered yet: subtract 3 from its Fee Schedule row columns (docs/SETUP-CHECKLIST.md, step 3.2). '
-          : 'Expected 0, because the workbook is renumbered to match the sheet (decision 2026-10-05): it may have been renumbered twice, or rows moved on the sheet. ') +
-        'Do not write synced rows until this reads 0.',
+          ? 'The workbook is on the original Phase 1 numbering. The app corrects this automatically when it loads (DECISIONS #34); no change to the workbook is needed. '
+          : 'Expected 0 or -3 (the original numbering, corrected automatically): it may have been renumbered by hand more than once, or rows moved on the sheet. The app refuses to load until this is fixed. ') +
+        'Do not write synced rows with an offset.',
     );
   }
   L.push(`Matched ${diff.matched}, unchanged ${diff.unchanged}, changed ${diff.changed.length}, only in the sync ${diff.added.length}, only in the current tab ${diff.removed.length}.`);

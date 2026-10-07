@@ -1,8 +1,10 @@
-import { missingParts, parseWorkbook, SHEETS, type MissingPart, type Sheet, type SheetName } from './workbook';
+import { insuranceBillable, serviceNames } from '../engine/rules';
+import { payersWithoutColumns, withLiveFeeSchedule, type FeeScheduleRange } from './liveRates';
+import { checkWorkbook, missingParts, parseWorkbook, SHEETS, type MissingPart, type Sheet, type SheetName } from './workbook';
 
 /**
  * Readiness checks for the real-data verification (docs/phase5-checklist.md). Reports which settings exist (by name
- * only, never a value), whether the workbook and the log list can be read, and when the data was loaded.
+ * only, never a value), whether the workbook, the Fee Schedule and the log list can be read, and when the data was loaded.
  * Read-only: nothing here writes to SharePoint.
  */
 
@@ -59,7 +61,9 @@ export interface DiagnosticsReport {
   generatedAt: string;
   settings: SettingStatus[];
   missingRequired: string[];
-  workbook: Check<{ tabs: TabCount[]; missing: MissingPart[]; parsed: Check<{ providers: number; services: number; plans: number }> }>;
+  workbook: Check<{ tabs: TabCount[]; missing: MissingPart[]; parsed: Check<{ providers: number; services: number; offered: number; billable: number; plans: number }> }>;
+  /** The live Fee Schedule: layout found, cell counts, and PayerKey payers with no column on the sheet. */
+  feeSchedule: Check<{ headerRow: number; firstDataRow: number; visits: number; usable: number; quarantined: number; ambiguous: number; missingPayers: string[]; rowShift: number }>;
   log: Check<{ status: number }> | { ok: null; reason: string };
   loaded: Check<{ loadedAt: string; source: string }>;
 }
@@ -69,6 +73,8 @@ export interface DiagnosticsDeps {
   /** Tab names in the workbook. */
   listWorksheets: () => Promise<string[]>;
   readSheet: (name: string) => Promise<Sheet>;
+  /** The Fee Schedule tab's used range (read-only). */
+  readFeeSchedule: () => Promise<FeeScheduleRange>;
   /** HTTP status of a read-only GET on the log list. */
   readLogList: () => Promise<number>;
   loadData: () => Promise<{ loadedAt: number; source: string }>;
@@ -84,6 +90,18 @@ export async function runDiagnostics(deps: DiagnosticsDeps): Promise<Diagnostics
   const has = (n: string) => settings.find((s) => s.name === n)?.present ?? false;
   const graphReady = ['AZURE_TENANT_ID', 'AZURE_CLIENT_ID', 'AZURE_CLIENT_SECRET'].every(has);
 
+  let fee: FeeScheduleRange | null = null;
+  let feeSchedule: DiagnosticsReport['feeSchedule'];
+  if (!graphReady) feeSchedule = { ok: false, error: 'Not checked: the Entra settings are missing.' };
+  else {
+    try {
+      fee = await deps.readFeeSchedule();
+      feeSchedule = { ok: true, value: { headerRow: 0, firstDataRow: 0, visits: 0, usable: 0, quarantined: 0, ambiguous: 0, missingPayers: [], rowShift: 0 } };
+    } catch (e) {
+      feeSchedule = { ok: false, error: errorText(e) };
+    }
+  }
+
   let workbook: DiagnosticsReport['workbook'];
   if (!graphReady || !has('DIRECTORY_DRIVE_ID') || !has('DIRECTORY_ITEM_ID')) {
     workbook = { ok: false, error: 'Not checked: the Entra or directory settings are missing.' };
@@ -92,10 +110,16 @@ export async function runDiagnostics(deps: DiagnosticsDeps): Promise<Diagnostics
       const present = new Set(await deps.listWorksheets());
       const sheets: Record<string, Sheet> = {};
       for (const tab of SHEETS) if (present.has(tab)) sheets[tab] = await deps.readSheet(tab);
-      let parsed: Check<{ providers: number; services: number; plans: number }>;
+      let parsed: Check<{ providers: number; services: number; offered: number; billable: number; plans: number }>;
       try {
-        const d = parseWorkbook(sheets, deps.now);
-        parsed = { ok: true, value: { providers: d.providers.length, services: d.services.length, plans: d.planMap.length } };
+        // Same steps as the app's loader: the workbook's own tabs first, then live Fee Schedule rates.
+        checkWorkbook(sheets);
+        if (!fee) throw new Error(feeSchedule.ok ? 'The Fee Schedule was not read.' : feeSchedule.error);
+        const live = withLiveFeeSchedule(sheets, fee);
+        const r = live.report;
+        feeSchedule = { ok: true, value: { headerRow: r.headerRow, firstDataRow: r.firstDataRow, visits: r.visits, usable: r.usable, quarantined: r.quarantined.length, ambiguous: r.ambiguous, missingPayers: payersWithoutColumns(sheets, r), rowShift: live.rowShift } };
+        const d = parseWorkbook(live.sheets, deps.now);
+        parsed = { ok: true, value: { providers: d.providers.length, services: d.services.length, offered: serviceNames(d).length, billable: d.services.filter((s) => insuranceBillable(s, d)).length, plans: d.planMap.length } };
       } catch (e) {
         parsed = { ok: false, error: errorText(e) };
       }
@@ -125,5 +149,5 @@ export async function runDiagnostics(deps: DiagnosticsDeps): Promise<Diagnostics
     loaded = { ok: false, error: errorText(e) };
   }
 
-  return { generatedAt: (deps.now ?? new Date()).toISOString(), settings, missingRequired, workbook, log, loaded };
+  return { generatedAt: (deps.now ?? new Date()).toISOString(), settings, missingRequired, workbook, feeSchedule, log, loaded };
 }

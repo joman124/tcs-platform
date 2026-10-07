@@ -1,3 +1,5 @@
+import { CUSTOM_SERVICE_ID } from '../engine/types';
+
 /**
  * Server-side gate for the de-identified estimate log. Only whitelisted fields with strict shapes pass,
  * so a patient name or any free text cannot be written to SharePoint even if the client misbehaves.
@@ -7,7 +9,7 @@ export interface LogRowInput {
   date: string;
   serviceId: string;
   providerId: string;
-  paymentType: 'cash' | 'insurance';
+  paymentType: 'cash' | 'insurance' | 'custom';
   payer: string;
   perVisitCents: number;
   sessions: number;
@@ -41,13 +43,16 @@ export function validateLogPayload(body: unknown, known: KnownIds): { ok: true; 
     if (typeof o.estimateId !== 'string' || !ID.test(o.estimateId)) return { ok: false, error: 'Bad estimateId.' };
     if (typeof o.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(o.date)) return { ok: false, error: 'Bad date.' };
     if (typeof o.serviceId !== 'string' || !ID.test(o.serviceId)) return { ok: false, error: 'Bad serviceId.' };
-    if (typeof o.providerId !== 'string' || !ID.test(o.providerId)) return { ok: false, error: 'Bad providerId.' };
-    if (o.paymentType !== 'cash' && o.paymentType !== 'insurance') return { ok: false, error: 'Bad paymentType.' };
+    if (typeof o.providerId !== 'string' || (o.providerId !== '' && !ID.test(o.providerId))) return { ok: false, error: 'Bad providerId.' };
+    if (o.paymentType !== 'cash' && o.paymentType !== 'insurance' && o.paymentType !== 'custom') return { ok: false, error: 'Bad paymentType.' };
     if (typeof o.payer !== 'string' || !PAYER.test(o.payer)) return { ok: false, error: 'Bad payer.' };
-    if (o.paymentType === 'cash' && o.payer !== '') return { ok: false, error: 'Cash rows carry no payer.' };
+    if (o.paymentType !== 'insurance' && o.payer !== '') return { ok: false, error: 'Cash and custom rows carry no payer.' };
     if (o.paymentType === 'insurance' && !known.payers.has(o.payer)) return { ok: false, error: 'Unknown payer.' };
-    if (!known.providers.has(o.providerId)) return { ok: false, error: 'Unknown provider.' };
-    if (!known.services.has(o.serviceId)) return { ok: false, error: 'Unknown service.' };
+    // A custom line (admin's own description and price) logs as service CUSTOM, with or without a provider. Its description is never sent.
+    const custom = o.paymentType === 'custom';
+    if (custom !== (o.serviceId === CUSTOM_SERVICE_ID)) return { ok: false, error: 'Custom rows, and only custom rows, use service CUSTOM.' };
+    if (!(custom && o.providerId === '') && !known.providers.has(o.providerId)) return { ok: false, error: 'Unknown provider.' };
+    if (!custom && !known.services.has(o.serviceId)) return { ok: false, error: 'Unknown service.' };
     if (!isInt(o.perVisitCents, 1, 10_000_000) || !isInt(o.sessions, 1, 1000) || !isInt(o.totalCents, 1, 100_000_000) || !isInt(o.estimateFullPlanCents, 1, 1_000_000_000)) return { ok: false, error: 'Bad amount.' };
     rows.push(o as unknown as LogRowInput);
   }

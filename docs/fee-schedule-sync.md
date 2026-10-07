@@ -1,6 +1,8 @@
 # Fee Schedule sync
 
-The directory workbook's `FeeRates` and `CashPrices` tabs are a snapshot of the Billing Department's `MHCA Fee Schedule.xlsx`. This sync rebuilds them from the live sheet. **Only the engine and a dry-run diff exist.** Nothing writes to the directory workbook or the Fee Schedule yet; writing synced rows is a later, separately approved step.
+**The app reads its rates live from the Fee Schedule (decided 2026-10-06).** Each time it loads data (5-minute cache, or "Refresh data"), it reads the Billing Department's `MHCA Fee Schedule.xlsx` read-only, runs this sync, and uses the result in place of the directory workbook's `FeeRates` and `CashPrices` tabs (`src/data/liveRates.ts`). The workbook keeps providers, services, credentialing and the service-to-visit links. Nothing is written to either spreadsheet.
+
+Before pricing, the loader checks that the two spreadsheets line up: the workbook's own `FeeRates` tab (kept, even though its amounts are no longer used) must match the sheet's row numbers, either directly or at the original −3 offset, which is corrected in memory (`DECISIONS.md` #34); any other offset is refused, and every visit and cash-price row the workbook points at must be a visit on the sheet. Any mismatch shows on the "not ready" page, naming the problem, instead of pricing from the wrong rows. If Billing moves a column, the layout check does the same.
 
 | Piece | What it does |
 |---|---|
@@ -38,7 +40,7 @@ The Billing copy was read once by its exact IDs to confirm the layout. No values
 
 Phase 1 and the handoff said data starts at **row 7**. The live sheet's own formulas (`N4: =SUM(N5:N12)` on the Mental Health Assessment row) show it starts at **row 4**. Every Phase 1 cell reference is exactly 3 rows lower on the sheet (AD51 is AD48, AT145 is AT142, and so on). The likely cause: Phase 1 counted lines of a text export that has 3 preamble lines. The sync numbers rows from the sheet as it is.
 
-The current `FeeRates`, `ServiceComponents` ("Visit row"), `Services` ("Cash price row") and `CashPrices` ("Fee Schedule row") tabs were built with the Phase 1 numbering. **They work together today because they share it**, but synced rows would not line up with them. The diff detects a constant offset and warns (`shifted by -3 (detected)`). **Decision (2026-10-05): renumber the workbook by −3**, so its rows match the sheet Billing sees. The steps are in `docs/SETUP-CHECKLIST.md` §3, step 2 (done in Excel before the upload). After that the diff should report no offset; if it still detects one, its warning says whether the renumbering is missing (−3) or something else moved. Synced rows are never written with an offset.
+The current `FeeRates`, `ServiceComponents` ("Visit row"), `Services` ("Cash price row") and `CashPrices` ("Fee Schedule row") tabs were built with the Phase 1 numbering. **They work together today because they share it**, but synced rows would not line up with them. The diff detects a constant offset and warns (`shifted by -3 (detected)`). **Decision (2026-10-07, #34, replacing the 2026-10-05 manual renumbering): the app corrects the −3 itself.** When the workbook's `FeeRates` tab lines up with the sheet only at −3, the loader subtracts 3 from `ServiceComponents` "Visit row" and `Services` "Cash price row" in memory before pricing; nothing is written to the workbook, and `/diagnostics` reports the correction. A workbook renumbered by hand (no offset) also works. Any other offset is refused, and every row the workbook points at must still be a visit on the sheet, which catches a half-done renumbering. Synced rows are never written with an offset.
 
 ## Running the dry run
 
@@ -53,7 +55,6 @@ AZURE_TENANT_ID=… AZURE_CLIENT_ID=… AZURE_CLIENT_SECRET=… DIRECTORY_DRIVE_
 
 The report lists: header and data rows, payer columns, warnings, cell counts by status, quarantined cells with their medians, numbers stored as text, optional add-ons, add-ons with notes, non-CPT parents, unlabelled rows, skipped rows, and against the current tab: row offset, changed rates or usability, rows only in the sync, rows only in the current tab, and payers on one side only.
 
-## Not built yet
+## Not needed any more
 
-- Writing synced `FeeRates`/`CashPrices` to the directory workbook (needs a write grant on the directory site and the renumbering decision above).
-- Running it on a schedule.
+- Writing synced rows to the workbook, or running the sync on a schedule: the app reads the Fee Schedule live. The dry-run diff (`npm run fee-schedule-diff`) remains for comparing the old snapshot with the sheet.

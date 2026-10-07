@@ -11,13 +11,18 @@ Tick each box and write down anything that differs from the expected value.
 1. [ ] Open `https://<domain>/diagnostics` signed out. **Expected:** you are sent to Microsoft sign-in.
 2. [ ] Sign in with an MHCA account. **Expected:** the readiness page opens.
    - [ ] Settings: `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AUTH_SECRET`, `DIRECTORY_DRIVE_ID`, `DIRECTORY_ITEM_ID` all say **Present**; `LOG_SITE_ID` and `LOG_LIST_ID` say **Present** (logging on). No value is shown anywhere.
-   - [ ] Directory workbook: **OK**. Every tab has a row count (none "missing"). Roughly: Providers 35, ProviderServices 126, Services 31. "Parsed: … providers, … services, … plans" appears with no error.
+   - [ ] Directory workbook: **OK**. Every tab has a row count (none "missing"). Roughly: Providers 35, ProviderServices 126, Services 31. "Parsed with live Fee Schedule rates: … providers, … services (… names in the picker, … billable to insurance), … plans" appears with no error. The Fee Schedule line may say the workbook's row numbers are on the old numbering and corrected automatically: that is expected and needs no action. If it says the rows "do not line up" or that a service "uses visit row …", send that message back.
+   - [ ] Fee Schedule (live rates): **OK**. Header row 1, data from row 4; about 42 visits; no "payers with no Fee Schedule column". If it says the app cannot read the Fee Schedule, the Billing-site read grant is missing (setup checklist step 5).
    - [ ] If it says "This directory workbook is an older build: …", the uploaded copy is out of date (usually no `Services` "Allowed tiers" column). Replace it with the latest build and reload. Do not continue until this is OK.
    - [ ] Estimate log list: **OK** ("Readable (HTTP 200)"). This check only reads.
    - [ ] Loaded data: a time within the last few minutes, source `sharepoint`.
 3. [ ] Sign in with an account from another tenant (a personal Microsoft account). **Expected:** sign-in is refused.
 
 ## B. Prices (cross-check each against the Fee Schedule)
+
+Rates and cash prices are read live from the Billing Fee Schedule.
+
+0. [ ] Open "+ Add service". **Expected:** the service list holds every service on the workbook's Services tab (about 31 rows; services that share a patient-facing name, like master's and doctoral counseling, appear once), including TMS, Treatment Consult and switched-off services. Choosing a provider lists every active provider linked to that service on the ProviderServices tab.
 
 For each line: open the estimator, choose "+ Add service", pick the service and provider, then the payment. Read "Rate per visit" in the dialog.
 
@@ -39,12 +44,13 @@ For each line: open the estimator, choose "+ Add service", pick the service and 
 14. [ ] Choose **Edit** on line 5. **Expected:** the dialog says "Edit service", everything is prefilled. Change weeks to 8 and "Save changes". **Expected:** the line stays second; line total $826.48; Full plan $3,354.51.
 15. [ ] Choose **Edit** on a line, change something, then **Cancel**. **Expected:** nothing changed.
 16. [ ] "Preview patient copy". **Expected:** the edited values (8 weeks); no CPT codes, plan names, credentials or warnings; weekly, monthly and full-plan figures; "info@mentalhealthcenter.com"; no SAMPLE DATA watermark.
+16a. [ ] "+ Add service", choose **Custom service**. Description "Test custom item", no specific provider, price 45, Total sessions 1. **Expected:** Rate per visit $45.00; the line shows "—" for provider and "Custom price"; Full plan goes up by $45.00; the patient copy lists "Test custom item" at $45.00.
 17. [ ] Print (to PDF is fine). **Expected:** US Letter; then "Printed. Clear for the next patient?" appears.
 
 ## D. The log (SharePoint list)
 
-18. [ ] Open the log list. **Expected:** exactly **one new row per printed line** (3 rows for step 17), all with the same EstimateId and today's date.
-19. [ ] **No patient name in any row** (search the list for "Test Patient": no results). Columns hold only IDs, payment type, payer, amounts and sessions.
+18. [ ] Open the log list. **Expected:** exactly **one new row per printed line** (4 rows for step 17, including the custom line), all with the same EstimateId and today's date. The custom line's row has ServiceId `CUSTOM`, PaymentType `custom`, blank ProviderId and Payer, PerVisit 45.
+19. [ ] **No patient name and no custom description in any row** (search the list for "Test Patient" and "Test custom item": no results). Columns hold only IDs, payment type, payer, amounts and sessions.
 20. [ ] The row for line 5 shows the **edited** values (Sessions 8, LineTotal 826.48), not the values from before the edit. Editing before printing logs only the final values.
 21. [ ] Choose "Keep", print again without changes. **Expected:** no new rows (an estimate is logged once). Then edit any line and print again. **Expected:** a new set of rows with a new EstimateId.
 

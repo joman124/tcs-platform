@@ -14,6 +14,7 @@ import {
   type CostView,
   type EngineData,
   type LineInput,
+  type Payment,
 } from '@/src/engine';
 
 interface Line {
@@ -24,6 +25,7 @@ interface Line {
 
 const IDLE_MS = 15 * 60 * 1000;
 const VIEW_LABEL: Record<CostView, string> = { weekly: 'Weekly', monthly: 'Monthly', plan: 'Full plan' };
+const paymentText = (p: Payment): string => (p.type === 'cash' ? 'Cash' : p.type === 'custom' ? 'Custom price' : `Insurance · ${p.subPlan}`);
 
 /**
  * The whole estimate lives in this component's React state. Nothing is written to localStorage, cookies,
@@ -64,10 +66,12 @@ export function Estimator({
   const providerById = useMemo(() => new Map(data.providers.map((p) => [p.id, p])), [data]);
   const total = planView(summary, view);
 
+  // A custom line may have no provider ('' = no specific provider); every other line needs one.
   const printLines: PrintLine[] = lines.flatMap((l, i) => {
     const provider = providerById.get(l.input.providerId);
     const result = results[i];
-    return provider && result?.ok ? [{ serviceName: l.serviceName, provider, input: l.input, result }] : [];
+    const custom = l.input.payment.type === 'custom';
+    return (provider || (custom && l.input.providerId === '')) && result?.ok ? [{ serviceName: l.serviceName, provider, input: l.input, result }] : [];
   });
 
   const clearAll = useCallback(() => {
@@ -251,10 +255,10 @@ export function Estimator({
                     <tr key={l.id} className={r.ok ? '' : 'blocked'} data-testid="line">
                       <td>{l.serviceName}</td>
                       <td>
-                        {provider ? displayName(provider.name) : '?'}
+                        {provider ? displayName(provider.name) : l.input.providerId === '' ? '—' : '?'}
                         {provider?.credential ? `, ${provider.credential}` : ''}
                       </td>
-                      <td>{l.input.payment.type === 'cash' ? 'Cash' : `Insurance · ${l.input.payment.subPlan}`}</td>
+                      <td>{paymentText(l.input.payment)}</td>
                       <td>{r.ok ? freqText(l.input.frequency, r.sessions ?? 1) : '—'}</td>
                       <td className="num">{r.perVisitCents === null ? '—' : fmt(r.perVisitCents)}</td>
                       <td className="num">{v === null ? (r.ok ? 'one time' : '—') : fmt(v)}</td>
@@ -308,7 +312,8 @@ export function Estimator({
             {printLines.length === 0 ? <div className="row dim">Nothing scheduled yet.</div> : null}
             {printLines.map((l, i) => (
               <div className="row" key={i}>
-                {displayName(l.provider.name)} · {l.serviceName} · {freqText(l.input.frequency, l.result.sessions ?? 1)}
+                {l.provider ? `${displayName(l.provider.name)} · ` : ''}
+                {l.serviceName} · {freqText(l.input.frequency, l.result.sessions ?? 1)}
               </div>
             ))}
           </div>

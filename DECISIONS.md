@@ -184,3 +184,19 @@ Still open from the overnight questions: how the sync treats code-less Neurofeed
 
 ### Test tooling (2026-10-05)
 - `vitest` 2 → 5.0.3 (with `vite` 8.3.2) to clear the dev-only vite/esbuild advisories; `vite-node` replaced by `tsx` as the runner for `npm run fee-schedule-diff`. `npm audit` is clean for all dependencies. Local test runs need Node 22.12+; the app's own requirement stays `>=20.9`.
+
+## User answers (2026-10-06)
+
+| # | Topic | Decision |
+|---|---|---|
+| 29 | Services offered | **Every service on the Services tab that is billable to insurance** (at least one usable contracted rate; Medicare and quarantined cells do not count) is offered, whatever its "Active in estimator" flag, plus services switched on in the workbook (e.g. cash-only). This brings back TMS and Treatment Consult (supersedes decision 6 for TMS). |
+| 30 | Rate source | **Rates and cash prices are read live from the Billing Fee Schedule** (read-only) at each data load, through the sync engine; the workbook's `FeeRates`/`CashPrices` tabs are no longer used for amounts. The loader refuses (shows "not ready") if the workbook is not renumbered or points at rows that are not visits. Requires a read grant on the Billing site. |
+| 31 | Custom line items | **"+ Add service" has a "Custom service" option**: the admin types any description and a price per visit (up to $100,000), optionally names any Active provider, and sets the frequency as usual. It is priced exactly as typed (no rate, credentialing or payer checks), counts in every total and prints on the patient copy with its description. The log records it as service `CUSTOM`, payment type `custom`, no payer, with the provider ID (or blank) and amounts; **the description is never logged**, and the server rejects any other service ID on a custom row. Adds `custom` to the log list's PaymentType choices. |
+
+## User answers (2026-10-07)
+
+| # | Topic | Decision |
+|---|---|---|
+| 32 | Services offered (supersedes #29) | **Every service on the workbook's Services tab is offered**, whatever its "Active in estimator" flag or rates. A service with no usable price for the chosen payment shows why on its line and cannot be added (cash fallback offered where it applies). A service no active provider offers says so in the dialog. The diagnostics page reports how many services are billable to insurance. |
+| 33 | Real data | **The demo data stays invented.** The real services, active providers and rates come only from the live workbook and Fee Schedule once setup is finished (`docs/SETUP-CHECKLIST.md`); nothing real is copied into the repo. |
+| 34 | Fee Schedule row numbering (supersedes #24) | **No manual renumbering.** Asked to take over every step it can (2026-10-07), Claude moved the −3 correction into the app: when the workbook's own `FeeRates` tab lines up with the sheet only at −3 (the Phase 1 numbering), the loader subtracts 3 from `ServiceComponents` "Visit row" and `Services` "Cash price row" in memory before pricing (`FeeRates`/`CashPrices` are replaced by the live sync anyway). Nothing is written to the workbook. A workbook already renumbered by hand (offset 0) also works. Any other offset, or a row that is not a visit on the sheet (e.g. a half-done renumbering), is still refused on the "not ready" page. `/diagnostics` says when the correction is applied. |

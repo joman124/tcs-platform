@@ -4,15 +4,15 @@ import type { PlanSummary } from './plan';
 /**
  * De-identified estimate log. One row per priced line.
  * Deliberately has NO patient name, no free text, no timestamp finer than the day, and no admin identity.
- * Blocked lines are not logged.
+ * Blocked lines are not logged. A custom line is logged as service id CUSTOM with its amounts; its description is never logged.
  */
 export interface EstimateLogRow {
   estimateId: string; // random per estimate, not derivable from patient data
   date: string; // YYYY-MM-DD
   serviceId: string;
   providerId: string;
-  paymentType: 'cash' | 'insurance';
-  payer: string; // parent payer for insurance lines, '' for cash
+  paymentType: 'cash' | 'insurance' | 'custom';
+  payer: string; // parent payer for insurance lines, '' for cash and custom
   perVisitCents: number;
   sessions: number;
   totalCents: number;

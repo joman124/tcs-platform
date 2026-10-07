@@ -3,7 +3,8 @@ import type { LineInput, LineResult, PlanSummary, Provider, Service } from '@/sr
 
 export interface PrintLine {
   serviceName: string;
-  provider: Provider;
+  /** Absent on a custom line with no specific provider. */
+  provider?: Provider;
   input: LineInput;
   result: LineResult;
 }
@@ -46,7 +47,7 @@ export function PrintSheet({ patientName, dateText, lines, summary, demo }: { pa
           {lines.map((l, i) => (
             <tr key={i}>
               <td>{l.serviceName}</td>
-              <td>{displayName(l.provider.name)}</td>
+              <td>{l.provider ? displayName(l.provider.name) : ''}</td>
               <td>{freqText(l.input.frequency, l.result.sessions ?? 1)}</td>
               <td className="num">{fmt(l.result.perVisitCents ?? 0)}</td>
               <td className="num">{fmt(l.result.totalCents ?? 0)}</td>

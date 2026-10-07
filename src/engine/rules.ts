@@ -1,5 +1,7 @@
 import { toCents } from './money';
 import {
+  CUSTOM_MAX_CENTS,
+  CUSTOM_SERVICE_ID,
   NO_MEDICARE_CREDENTIALS,
   type Credential,
   type EngineData,
@@ -65,9 +67,29 @@ export function resolveFrequency(freq: Frequency): Sessions | { error: Issue } {
   return { sessions: freq.sessions, spanWeeks: freq.spanWeeks ?? null, issues };
 }
 
-/** Services listed in the dropdown: one entry per active patient-facing name. */
+// Billable service IDs per rates array, so the pickers do not rescan every rate on each render.
+const billableCache = new WeakMap<EngineData['rates'], Set<string>>();
+
+/**
+ * At least one usable contracted rate for some payer and tier. Quarantined payers (Medicare) and unusable cells do not
+ * count. Reported on the diagnostics page; it no longer decides what the picker offers.
+ */
+export function insuranceBillable(service: Service, data: EngineData): boolean {
+  let ids = billableCache.get(data.rates);
+  if (!ids) {
+    ids = new Set(data.rates.filter((r) => r.status === 'OK' && r.total > 0).map((r) => r.serviceId));
+    billableCache.set(data.rates, ids);
+  }
+  return ids.has(service.id);
+}
+
+/**
+ * Services listed in the dropdown: one entry per patient-facing name, for every service on the workbook's Services tab,
+ * whatever its "Active in estimator" flag (user decision 2026-10-07, DECISIONS #32). A service with no usable price still
+ * appears; its line shows why it cannot be priced.
+ */
 export function serviceNames(data: EngineData): string[] {
-  return [...new Set(data.services.filter((s) => s.active).map((s) => s.name))].sort();
+  return [...new Set(data.services.map((s) => s.name))].sort();
 }
 
 /**
@@ -78,7 +100,6 @@ export function resolveService(name: string, provider: Provider, data: EngineDat
   const tier = tierOf(provider.credential);
   return data.services.find(
     (s) =>
-      s.active &&
       s.name === name &&
       (!s.allowedTiers || (tier !== null && s.allowedTiers.includes(tier))) &&
       data.providerServices.some((ps) => ps.providerId === provider.id && ps.serviceId === s.id),
@@ -119,7 +140,38 @@ export function plansForProvider(provider: Provider, data: EngineData): PlanOpti
   return out;
 }
 
+const finished = (perVisitCents: number, freq: Sessions, extra: Partial<LineResult> = {}): LineResult => ({
+  ok: true,
+  issues: freq.issues,
+  perVisitCents,
+  sessions: freq.sessions,
+  totalCents: perVisitCents * freq.sessions,
+  spanWeeks: freq.spanWeeks,
+  recurring: freq.sessions > 1,
+  cashFallbackAvailable: false,
+  ...extra,
+});
+
+/**
+ * A custom line: the admin's own description and price per visit. No directory service, rate or credentialing applies.
+ * The provider is optional; if one is given it must be Active.
+ */
+function priceCustomLine(input: LineInput, perVisitCents: number, data: EngineData): LineResult {
+  if (input.serviceId !== CUSTOM_SERVICE_ID) return blocked([block('unknown-service', 'Service not found.')]);
+  if (input.providerId !== '') {
+    const provider = data.providers.find((p) => p.id === input.providerId);
+    if (!provider) return blocked([block('unknown-provider', 'Provider not found.')]);
+    if (provider.status !== 'Active') return blocked([block('provider-unavailable', `Provider status is "${provider.status}".`)]);
+  }
+  if (!Number.isInteger(perVisitCents) || perVisitCents < 1) return blocked([block('custom-price', 'Enter a price per visit greater than $0.')]);
+  if (perVisitCents > CUSTOM_MAX_CENTS) return blocked([block('custom-price', 'Price per visit must be $100,000 or less.')]);
+  const freq = resolveFrequency(input.frequency);
+  if ('error' in freq) return blocked([freq.error]);
+  return finished(perVisitCents, { ...freq, issues: [...freq.issues] });
+}
+
 export function priceLine(input: LineInput, data: EngineData): LineResult {
+  if (input.payment.type === 'custom') return priceCustomLine(input, input.payment.perVisitCents, data);
   const provider = data.providers.find((p) => p.id === input.providerId);
   if (!provider) return blocked([block('unknown-provider', 'Provider not found.')]);
   if (provider.status !== 'Active') {
@@ -127,7 +179,6 @@ export function priceLine(input: LineInput, data: EngineData): LineResult {
   }
   const service = data.services.find((s) => s.id === input.serviceId);
   if (!service) return blocked([block('unknown-service', 'Service not found.')]);
-  if (!service.active) return blocked([block('service-inactive', 'Service is not active in the estimator.')]);
   if (!data.providerServices.some((ps) => ps.providerId === provider.id && ps.serviceId === service.id)) {
     return blocked([block('not-offered', 'This provider does not offer this service.')]);
   }
@@ -139,18 +190,7 @@ export function priceLine(input: LineInput, data: EngineData): LineResult {
   const freq = resolveFrequency(input.frequency);
   if ('error' in freq) return blocked([freq.error]);
   const issues: Issue[] = [...freq.issues];
-
-  const finish = (perVisitCents: number, extra: Partial<LineResult> = {}): LineResult => ({
-    ok: true,
-    issues,
-    perVisitCents,
-    sessions: freq.sessions,
-    totalCents: perVisitCents * freq.sessions,
-    spanWeeks: freq.spanWeeks,
-    recurring: freq.sessions > 1,
-    cashFallbackAvailable: false,
-    ...extra,
-  });
+  const finish = (perVisitCents: number, extra: Partial<LineResult> = {}): LineResult => finished(perVisitCents, { ...freq, issues }, extra);
 
   // ---- Cash
   const payment = input.payment;
