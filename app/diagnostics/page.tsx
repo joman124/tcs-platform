@@ -1,7 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { runDiagnostics, type Check } from '@/src/data/diagnostics';
-import { listWorksheets, readFeeSchedule, readSheet } from '@/src/data/graph';
+import { listWorksheets, readBenefitsSheet, readFeeSchedule, readSheet } from '@/src/data/graph';
 import { isDemo, loadData } from '@/src/data/load';
 import { readLogList } from '@/src/data/log';
 
@@ -27,6 +27,7 @@ export default async function Diagnostics() {
     readSheet: (name) => readSheet(env.DIRECTORY_DRIVE_ID ?? '', env.DIRECTORY_ITEM_ID ?? '', name),
     readFeeSchedule,
     readLogList,
+    readBenefitsSheet,
     loadData: () => loadData(),
   });
 
@@ -109,6 +110,17 @@ export default async function Diagnostics() {
         Estimate log list: <Mark ok={r.log.ok} />
       </h2>
       <p>{r.log.ok === null ? r.log.reason : r.log.ok ? `Readable (HTTP ${r.log.value.status}). Read-only check; nothing was written.` : r.log.error}</p>
+
+      <h2>
+        Patient benefits sheet: <Mark ok={r.benefits.ok === null ? null : r.benefits.ok && r.benefits.value.missing.length === 0} />
+      </h2>
+      <p>
+        {r.benefits.ok === null
+          ? r.benefits.reason
+          : r.benefits.ok
+            ? `Header row ${r.benefits.value.headerRow}, ${r.benefits.value.rows} patient rows. Columns recognised: ${r.benefits.value.matched.join(', ')}.${r.benefits.value.missing.length ? ` Not found (send these headings to be mapped): ${r.benefits.value.missing.join(', ')}.` : ''} No names or values are shown.`
+            : r.benefits.error}
+      </p>
 
       <h2>
         Loaded data: <Mark ok={r.loaded.ok} />

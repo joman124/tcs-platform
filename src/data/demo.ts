@@ -30,15 +30,15 @@ export const demoData: EngineData = {
     { providerId: 'D01', serviceId: 'S-IOP' },
   ],
   services: [
-    { id: 'S-IND-M', name: 'Individual Counseling', active: true, perSession: true, cashPrice: 195, cashStatus: 'ok', allowedTiers: ['T2'] },
-    { id: 'S-IND-D', name: 'Individual Counseling', active: true, perSession: true, cashPrice: 250, cashStatus: 'ok', allowedTiers: ['T1'] },
-    { id: 'S-CPL', name: 'Couples Counseling', active: true, perSession: true, cashPrice: 225, cashStatus: 'ok' },
-    { id: 'S-GRP', name: 'Group Counseling', active: true, perSession: true, cashPrice: 80, cashStatus: 'ok' },
-    { id: 'S-MM', name: 'Medication Management', active: true, perSession: true, cashPrice: 175, cashStatus: 'ok' },
-    { id: 'S-ADHD', name: 'ADHD Evaluation', active: true, perSession: false, cashPrice: 1800, cashStatus: 'ok' },
+    { id: 'S-IND-M', codes: '90837', name: 'Individual Counseling', active: true, perSession: true, cashPrice: 195, cashStatus: 'ok', allowedTiers: ['T2'] },
+    { id: 'S-IND-D', codes: '90837', name: 'Individual Counseling', active: true, perSession: true, cashPrice: 250, cashStatus: 'ok', allowedTiers: ['T1'] },
+    { id: 'S-CPL', codes: '90847', name: 'Couples Counseling', active: true, perSession: true, cashPrice: 225, cashStatus: 'ok' },
+    { id: 'S-GRP', codes: '90853', name: 'Group Counseling', active: true, perSession: true, cashPrice: 80, cashStatus: 'ok' },
+    { id: 'S-MM', codes: '99214', name: 'Medication Management', active: true, perSession: true, cashPrice: 175, cashStatus: 'ok' },
+    { id: 'S-ADHD', codes: '90791, 96130', name: 'ADHD Evaluation', active: true, perSession: false, cashPrice: 1800, cashStatus: 'ok' },
     // Switched off in the workbook; still offered (every service on the tab is). TMS has an insurance rate; IOP has no price at all.
-    { id: 'S-TMS', name: 'TMS Session', active: false, perSession: true, cashPrice: 300, cashStatus: 'ok' },
-    { id: 'S-IOP', name: 'Intensive Outpatient Program', active: false, perSession: false, cashPrice: null, cashStatus: 'blank' },
+    { id: 'S-TMS', codes: '90867', name: 'TMS Session', active: false, perSession: true, cashPrice: 300, cashStatus: 'ok' },
+    { id: 'S-IOP', codes: 'S9480', name: 'Intensive Outpatient Program', active: false, perSession: false, cashPrice: null, cashStatus: 'blank' },
   ],
   rates: [
     { serviceId: 'S-IND-M', payer: 'Aetna', tier: 'T2', total: 103.31, status: 'OK' },
@@ -79,3 +79,13 @@ export const demoData: EngineData = {
     { payer: 'UHC/Optum/UMR', quarantined: false, stale: false },
   ],
 };
+
+/**
+ * DEMO benefits sheet: invented patients for trying the benefits lookup. Dates of birth are Excel serial numbers, as the
+ * real sheet's usually are (29221 = 1980-01-01).
+ */
+export const demoBenefitsSheet: unknown[][] = [
+  ['Patient Name', 'DOB', 'Insurance', 'Co-Pay', 'Deductible', 'Deductible Remaining', 'Co-Insurance', 'Out of Pocket', 'Out of Pocket Remaining'],
+  ['Test, Jane', 29221, 'Aetna', 30, 1500, 400, 0.2, 5000, 3200],
+  ['Sample, Sam', '7/4/1975', 'Cigna', '$0.00', '$500.00', '$0.00', '10%', '$3,000.00', '$1,250.00'],
+];

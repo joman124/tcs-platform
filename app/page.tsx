@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation';
 import { auth, signOut } from '@/auth';
 import { Estimator } from '@/components/Estimator';
+import { benefitsConfigured } from '@/src/data/graph';
 import { isDemo, loadData } from '@/src/data/load';
 import { logConfigured } from '@/src/data/log';
 
@@ -27,6 +28,7 @@ export default async function Page() {
         loadedAt={loaded.loadedAt}
         userName={userName}
         logEnabled={!demo && logConfigured()}
+        benefitsLookup={demo || benefitsConfigured()}
         signOutAction={demo ? null : signOutAction}
       />
     );

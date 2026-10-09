@@ -1,4 +1,5 @@
 import { insuranceBillable, serviceNames } from '../engine/rules';
+import { describeSheet, type BenefitsField } from './benefitsSheet';
 import { payersWithoutColumns, withLiveFeeSchedule, type FeeScheduleRange } from './liveRates';
 import { checkWorkbook, missingParts, parseWorkbook, SHEETS, type MissingPart, type Sheet, type SheetName } from './workbook';
 
@@ -24,6 +25,7 @@ export const SETTINGS: readonly SettingSpec[] = [
   { name: 'DIRECTORY_ITEM_ID', required: true, purpose: 'Directory workbook file' },
   { name: 'LOG_SITE_ID', required: false, purpose: 'Estimate log site (blank = logging off)' },
   { name: 'LOG_LIST_ID', required: false, purpose: 'Estimate log list (blank = logging off)' },
+  { name: 'BENEFITS_ITEM_ID', required: false, purpose: 'Patient benefits sheet (blank = benefits typed by hand only)' },
 ];
 
 export interface SettingStatus {
@@ -65,6 +67,8 @@ export interface DiagnosticsReport {
   /** The live Fee Schedule: layout found, cell counts, and PayerKey payers with no column on the sheet. */
   feeSchedule: Check<{ headerRow: number; firstDataRow: number; visits: number; usable: number; quarantined: number; ambiguous: number; missingPayers: string[]; rowShift: number }>;
   log: Check<{ status: number }> | { ok: null; reason: string };
+  /** The patient benefits sheet: recognised columns and row count only, never a name or value. */
+  benefits: Check<{ headerRow: number | null; matched: BenefitsField[]; missing: BenefitsField[]; rows: number }> | { ok: null; reason: string };
   loaded: Check<{ loadedAt: string; source: string }>;
 }
 
@@ -77,6 +81,8 @@ export interface DiagnosticsDeps {
   readFeeSchedule: () => Promise<FeeScheduleRange>;
   /** HTTP status of a read-only GET on the log list. */
   readLogList: () => Promise<number>;
+  /** The benefits sheet's used range (read-only); only called when BENEFITS_ITEM_ID is set. */
+  readBenefitsSheet?: () => Promise<unknown[][]>;
   loadData: () => Promise<{ loadedAt: number; source: string }>;
   now?: Date;
 }
@@ -141,6 +147,18 @@ export async function runDiagnostics(deps: DiagnosticsDeps): Promise<Diagnostics
     }
   }
 
+  let benefits: DiagnosticsReport['benefits'];
+  if (!has('BENEFITS_ITEM_ID') || !deps.readBenefitsSheet) benefits = { ok: null, reason: 'No benefits sheet (BENEFITS_ITEM_ID is not set): benefits are typed in by hand.' };
+  else if (!graphReady) benefits = { ok: false, error: 'Not checked: the Entra settings are missing.' };
+  else {
+    try {
+      const d = describeSheet(await deps.readBenefitsSheet());
+      benefits = d.headerRow === null ? { ok: false, error: 'No header row with a patient name and a date of birth column was found in the first 10 rows.' } : { ok: true, value: d };
+    } catch (e) {
+      benefits = { ok: false, error: errorText(e) };
+    }
+  }
+
   let loaded: DiagnosticsReport['loaded'];
   try {
     const l = await deps.loadData();
@@ -149,5 +167,5 @@ export async function runDiagnostics(deps: DiagnosticsDeps): Promise<Diagnostics
     loaded = { ok: false, error: errorText(e) };
   }
 
-  return { generatedAt: (deps.now ?? new Date()).toISOString(), settings, missingRequired, workbook, feeSchedule, log, loaded };
+  return { generatedAt: (deps.now ?? new Date()).toISOString(), settings, missingRequired, workbook, feeSchedule, log, benefits, loaded };
 }

@@ -44,6 +44,8 @@ export interface Service {
   perSession: boolean;
   /** If set, only providers whose tier is listed can deliver this Fee Schedule service. */
   allowedTiers?: Tier[];
+  /** CPT code(s) as the workbook lists them (Services "Component CPTs"), printed on the patient estimate. */
+  codes?: string;
 }
 
 export type RateStatus = 'OK' | 'Payer quarantined' | 'No contracted rate - offer cash' | 'Blank';

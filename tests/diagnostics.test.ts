@@ -120,4 +120,24 @@ describe('runDiagnostics', () => {
     expect(r.workbook.ok && r.workbook.value.parsed.ok).toBe(true);
     expect(r.feeSchedule).toMatchObject({ ok: true, value: { rowShift: -3 } });
   });
+
+  it('the benefits sheet is off without BENEFITS_ITEM_ID, and never read', async () => {
+    const readBenefitsSheet = vi.fn(async () => [] as unknown[][]);
+    const r = await runDiagnostics(deps({ readBenefitsSheet }));
+    expect(r.benefits.ok).toBeNull();
+    expect(readBenefitsSheet).not.toHaveBeenCalled();
+  });
+
+  it('with a benefits sheet: recognised columns and a row count, never a name or value', async () => {
+    const sheet = [['Patient Name', 'DOB', 'Co-Pay', 'Deductible'], ['Invented, Person', 29221, 30, 1500]];
+    const r = await runDiagnostics(deps({ env: { ...fullEnv, BENEFITS_ITEM_ID: SECRETISH }, readBenefitsSheet: async () => sheet }));
+    expect(r.benefits).toMatchObject({ ok: true, value: { headerRow: 1, rows: 1, matched: ['dob', 'name', 'copay', 'deductible'] } });
+    expect(r.benefits.ok && r.benefits.value.missing).toEqual(['insurance', 'deductibleRemaining', 'outOfPocketRemaining', 'coinsurance', 'outOfPocket']);
+    expect(JSON.stringify(r)).not.toMatch(/Invented|29221|1500/);
+  });
+
+  it('a benefits sheet without name and date-of-birth columns is a problem', async () => {
+    const r = await runDiagnostics(deps({ env: { ...fullEnv, BENEFITS_ITEM_ID: 'x' }, readBenefitsSheet: async () => [['Copay'], [10]] }));
+    expect(r.benefits).toMatchObject({ ok: false, error: expect.stringContaining('date of birth') });
+  });
 });

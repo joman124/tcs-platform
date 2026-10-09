@@ -84,6 +84,20 @@ GET https://graph.microsoft.com/v1.0/drives/<DIRECTORY_DRIVE_ID>/items/<DIRECTOR
 
 > The copy in your personal OneDrive (drive `b!nlQsWChhb0u7Okr2aJHS7dpHN_y5RrBEqk_XYLQLvh32pBsOT1piS7JST3Bi-s2-`, item `01QUYAHRNQ2ZGYGXMELRBYJ5M45GSKWVBU`) was for testing only. Do not point the app at it.
 
+**3d. The patient benefits sheet (optional; turns on "Look up benefits").** Without it, the admin types each patient's co-pay, deductible, co-insurance and out of pocket into the estimate.
+
+1. Move the benefits workbook out of the personal OneDrive into the same site's **Documents** library: open it in OneDrive → **⋯** → **Move to** → the estimator site → **Documents** → **Move here**. (Moving keeps the file; anyone it was shared with keeps access through the site's members instead.) The site is private, so only its members and the app can read it.
+2. It needs a header row (within its first 10 rows) with a **patient name** column (or **First Name** and **Last Name**) and a **date of birth** column, and ideally: Insurance, Co-Pay, Deductible, Deductible Remaining, Co-Insurance, Out of Pocket, Out of Pocket Remaining. Common spellings are recognised (`src/data/benefitsSheet.ts`); `/diagnostics` lists any it did not recognise.
+3. Item ID:
+
+```
+GET https://graph.microsoft.com/v1.0/drives/<DIRECTORY_DRIVE_ID>/root:/<BENEFITS FILE NAME>.xlsx?$select=id,name
+```
+
+Copy `id`. This is **`BENEFITS_ITEM_ID`**. If the patients are not on the first tab, also set **`BENEFITS_SHEET`** to the tab name.
+
+The app reads the sheet only to answer a lookup (name + date of birth → that one row's benefit figures), never caches it and never logs names, dates of birth or benefits.
+
 ## 4. Create the estimate log list
 
 Needs `Sites.Manage.All` consent in Graph Explorer (or ask the admin to run it). Set the method to **POST** and paste this body:
@@ -180,6 +194,8 @@ In Vercel: team **joman124's projects** → project **mhca-estimator** → **Set
 | `DIRECTORY_ITEM_ID` | Step 3b |
 | `LOG_SITE_ID` | Step 2b |
 | `LOG_LIST_ID` | Step 4 |
+| `BENEFITS_ITEM_ID` | Step 3d (optional: turns on "Look up benefits") |
+| `BENEFITS_SHEET` | Step 3d, only if the patients are not on the first tab |
 
 Notes:
 - Leave the existing Preview variable `DEMO_MODE=1` alone. Demo mode turns itself off wherever the real settings exist.
@@ -199,6 +215,7 @@ Reply with this list filled in. **Do not include any secret or ID value**; "set"
 - Workbook uploaded, and the step 3c check shows "Allowed tiers": yes / no
 - Excel opened, no errors: yes / no
 - Log list created and permissions limited to billing leadership: yes / no
+- Benefits sheet moved to the estimator site (or not used): yes / no / not used
 - Admin confirmed: app is single tenant with the redirect URI; `Sites.Selected` with admin consent; **write** on the estimator site (or read/write on the two sites); **read** on the Billing site (required: live rates); secret expiry date
 - Vercel Production variables set (one line each): `AZURE_TENANT_ID`, `AZURE_CLIENT_ID`, `AZURE_CLIENT_SECRET`, `AUTH_SECRET`, `DIRECTORY_DRIVE_ID`, `DIRECTORY_ITEM_ID`, `LOG_SITE_ID`, `LOG_LIST_ID`
 - `/diagnostics` result: the Settings, Directory workbook, Estimate log list and Loaded data lines (OK / Problem, and any message shown)

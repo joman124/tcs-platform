@@ -43,7 +43,8 @@ For each line: open the estimator, choose "+ Add service", pick the service and 
 13. [ ] Enter "Test Patient". Add lines 4 (1 per week, 12 weeks), 5 (1 per week, 12 weeks) and 6 (total sessions 1). **Expected:** line totals $1,653.00, $1,239.72, $875.03; Full plan $3,767.75; Per week $241.06; Per month $1,044.59 or $1,044.60.
 14. [ ] Choose **Edit** on line 5. **Expected:** the dialog says "Edit service", everything is prefilled. Change weeks to 8 and "Save changes". **Expected:** the line stays second; line total $826.48; Full plan $3,354.51.
 15. [ ] Choose **Edit** on a line, change something, then **Cancel**. **Expected:** nothing changed.
-16. [ ] "Preview patient copy". **Expected:** the edited values (8 weeks); no CPT codes, plan names, credentials or warnings; weekly, monthly and full-plan figures; "info@mentalhealthcenter.com"; no SAMPLE DATA watermark.
+16. [ ] "Preview patient copy". **Expected:** a "Patient Estimate": "Prepared for: Test Patient", the date and "Insurance Company: Aetna"; each line as "code - service" (e.g. "90837 - Individual Counseling") with provider, per visit, visits (8 for line 5) and estimated total; "Estimated Allowable"; the benefit summary; "Estimated Patient Responsibility" reading "Pending benefits check" (no benefits entered yet); page 2 with the explanations and definitions; an Estimate ID; no plan names, credentials, warnings or weekly/monthly figures; no SAMPLE DATA watermark.
+16b. [ ] Enter a date of birth and either choose **Look up benefits** (if the benefits sheet is set up) or type the benefits. Use an invented test row in the sheet, never a real patient. **Expected:** the fields fill (or accept what you type); "Patient responsibility" in the footer shows an amount; the patient copy shows the benefit summary and the same amount. Change the co-pay: the amount changes. Choose "New estimate (clear)": the date of birth and benefits are cleared too.
 16a. [ ] "+ Add service", choose **Custom service**. Description "Test custom item", no specific provider, price 45, Total sessions 1. **Expected:** Rate per visit $45.00; the line shows "—" for provider and "Custom price"; Full plan goes up by $45.00; the patient copy lists "Test custom item" at $45.00.
 17. [ ] Print (to PDF is fine). **Expected:** US Letter; then "Printed. Clear for the next patient?" appears.
 
@@ -52,6 +53,7 @@ For each line: open the estimator, choose "+ Add service", pick the service and 
 18. [ ] Open the log list. **Expected:** exactly **one new row per printed line** (4 rows for step 17, including the custom line), all with the same EstimateId and today's date. The custom line's row has ServiceId `CUSTOM`, PaymentType `custom`, blank ProviderId and Payer, PerVisit 45.
 19. [ ] **No patient name and no custom description in any row** (search the list for "Test Patient" and "Test custom item": no results). Columns hold only IDs, payment type, payer, amounts and sessions.
 20. [ ] The row for line 5 shows the **edited** values (Sessions 8, LineTotal 826.48), not the values from before the edit. Editing before printing logs only the final values.
+20a. [ ] The EstimateId on the log rows matches the **Estimate ID** printed at the bottom of the patient copy. No row holds a date of birth, insurance name or benefit amount.
 21. [ ] Choose "Keep", print again without changes. **Expected:** no new rows (an estimate is logged once). Then edit any line and print again. **Expected:** a new set of rows with a new EstimateId.
 
 ## E. Clearing
