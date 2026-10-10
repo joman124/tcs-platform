@@ -28,6 +28,12 @@ button, input, select { font-family: var(--font); }
 .pname label { font-weight: 600; }
 .field { background: var(--white); border: 1px solid var(--navy); border-radius: 8px; padding: 9px 14px; width: 320px; max-width: 100%; font-size: 15px; color: var(--navy); }
 .hint { font-size: 13px; color: var(--forest); }
+.benefits-panel { padding: 14px 16px; display: flex; flex-direction: column; gap: 10px; }
+.benefits-panel label { font-size: 13px; font-weight: 600; display: block; margin-bottom: 4px; }
+.bp-head { display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap; }
+.bp-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px 16px; }
+.field.narrow { width: 100%; max-width: 220px; }
+.resp-line { margin-top: 8px; font-size: 14px; }
 .card { background: var(--white); border: 1px solid var(--navy); border-radius: 10px; overflow-x: auto; }
 table { border-collapse: collapse; width: 100%; }
 th { background: var(--sky); color: var(--navy); text-align: left; font-weight: 600; font-size: 14px; padding: 11px 14px; white-space: nowrap; }
@@ -95,17 +101,33 @@ select { width: 100%; font-size: 15px; padding: 9px 10px; border: 1px solid var(
 .mark span { font-weight: 400; }
 .mark b { display: block; font-size: 20px; letter-spacing: .06em; }
 .contact { font-size: 13px; text-align: right; }
-.meta { display: flex; justify-content: space-between; font-size: 16px; }
-.meta b { font-weight: 600; }
-.paper th { background: var(--sky); font-size: 13px; padding: 9px 10px; }
-.paper td { padding: 12px 10px; font-size: 14px; border-top: 1px solid var(--stone); }
-.tot { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; border-top: 3px solid var(--gold); padding-top: 14px; }
-.tot .l { font-size: 14px; font-weight: 600; }
-.tot .v { font-size: 32px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.three { display: flex; gap: 28px; justify-content: flex-end; font-size: 13px; flex-wrap: wrap; }
-.three div { text-align: right; }
-.three b { display: block; font-size: 16px; font-variant-numeric: tabular-nums; }
-.three small { display: block; font-size: 11px; color: var(--forest); }
+.ptitle { margin: 0; text-align: center; font-size: 22px; font-weight: 600; }
+.pinfo { display: flex; justify-content: space-between; gap: 24px; background: var(--sky); padding: 14px 16px; border-radius: 4px; font-size: 14px; }
+.pinfo .lbl { font-weight: 600; }
+.pinfo .pname-print { font-size: 18px; }
+.pinfo dl { display: grid; grid-template-columns: auto auto; gap: 2px 12px; margin: 0; }
+.pinfo dt { font-weight: 600; }
+.pinfo dd { margin: 0; }
+.paper th { background: var(--sky); font-size: 13px; padding: 9px 10px; text-align: left; }
+.paper th.num, .paper td.num { text-align: right; }
+.paper td { padding: 10px; font-size: 14px; border-top: 1px solid var(--stone); }
+.services tfoot td { border-top: 2px solid var(--gold); font-size: 15px; }
+.benefits { width: 62%; align-self: center; border-collapse: collapse; }
+.paper .benefits th { background: none; font-weight: 400; text-align: right; width: 55%; padding: 3px 10px; font-size: 13px; }
+.paper .benefits td { text-align: right; padding: 3px 10px; border: 1px solid var(--navy); font-size: 13px; font-variant-numeric: tabular-nums; }
+.boxes { display: grid; grid-template-columns: 1fr 1fr; border: 2px solid var(--navy); }
+.boxes div { padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
+.boxes span { font-size: 16px; font-weight: 600; }
+.boxes b { font-size: 22px; font-variant-numeric: tabular-nums; }
+.boxes .resp { background: var(--stone); text-align: right; border-left: 2px solid var(--navy); }
+.disclaimer { margin: 0; font-size: 13px; }
+.pfoot { display: flex; gap: 24px; border-top: 1px solid var(--navy); padding-top: 6px; font-size: 12px; }
+.page2 { display: flex; flex-direction: column; gap: 6px; font-size: 13px; padding-top: 28px; border-top: 3px dashed var(--stone); }
+.page2 h3 { margin: 10px 0 0; font-size: 15px; }
+.page2 p { margin: 0; }
+.defs { border-collapse: collapse; margin-top: 4px; }
+.paper .defs th, .paper .defs td { border: 1px solid var(--navy); padding: 7px 10px; font-size: 13px; vertical-align: top; }
+.paper .defs th { background: var(--sky); width: 28%; }
 
 .print-only { display: none; }
 @page { size: Letter; margin: 0.6in; }
@@ -113,13 +135,15 @@ select { width: 100%; font-size: 15px; padding: 9px 10px; border: 1px solid var(
   html, body { background: #FFFFFF; }
   .app { display: none !important; }
   .print-only { display: block; }
-  .paper { box-shadow: none; width: auto; min-height: 0; padding: 0; gap: 22px; }
+  .paper { box-shadow: none; width: auto; min-height: 0; padding: 0; gap: 14px; }
+  .paper td { padding: 7px 10px; }
   .paper tr { break-inside: avoid; page-break-inside: avoid; }
   .paper thead { display: table-header-group; }
-  .tot, .three, .meta { break-inside: avoid; }
+  .pinfo, .benefits, .boxes, .disclaimer, .pfoot, .defs { break-inside: avoid; }
+  .page2 { break-before: page; page-break-before: always; border-top: 0; padding-top: 0; }
   * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 }
-@media (max-width: 720px) { .steps, .pay, .freq { grid-template-columns: 1fr; } }
+@media (max-width: 720px) { .steps, .pay, .freq, .bp-grid { grid-template-columns: 1fr; } }
 .row-actions { white-space: nowrap; }
 .diag { max-width: 860px; }
 .diag h2 { font-size: 18px; margin: 28px 0 8px; }

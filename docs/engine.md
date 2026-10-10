@@ -31,6 +31,10 @@ npm run typecheck
 
 **Custom lines** (`payment: { type: 'custom', perVisitCents }`, service id `CUSTOM_SERVICE_ID` = `CUSTOM`) skip rules 1 and 3–9: the admin's typed price is used as is. The provider is optional (`providerId: ''`); a named provider must exist and be Active. The price must be whole cents from $0.01 to $100,000 (`CUSTOM_MAX_CENTS`). Frequency (rule 2) and the cost views apply as for any line. The line's description is its service name in the UI; it is printed but never logged.
 
+## Patient responsibility (`benefits.ts`)
+
+`patientResponsibility(inputs, results, benefits)` walks every insurance visit in line order: the remaining deductible is paid first, then the co-pay (never more than what is left of the visit), then co-insurance % on the rest; the visit's amount counts toward the out-of-pocket remaining and nothing more is owed once it reaches zero. Blank deductible remaining falls back to the deductible; blank co-pay and co-insurance are $0 and 0%; no out-of-pocket figure means no cap. Cash and custom lines are self-pay (owed in full, outside the deductible). With insurance lines and no benefits at all, the insurance share is `null` ("Pending benefits check"), never $0. Integer cents; co-insurance rounds half up per visit.
+
 ## Cost views
 
 All figures come from priced lines only. Blocked lines are excluded and `canPrint` is false while any line is blocked (or there are no lines).
