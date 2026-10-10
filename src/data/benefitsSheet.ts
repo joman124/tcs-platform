@@ -1,9 +1,10 @@
 import type { Benefits } from '../engine/benefits';
 
 /**
- * The patients' benefits sheet (co-pay, deductible, co-insurance, out of pocket), one row per patient. It holds patient
- * data, so: the server reads it only to answer one lookup, returns only the matching row's benefit figures (never a
- * name, date of birth or any other row), caches nothing and logs nothing. User decision 2026-10-09 (DECISIONS #35).
+ * The patients' benefits sheet (co-pay, deductible, co-insurance, out of pocket), one row per patient. Pure functions:
+ * they run in the browser, which reads the sheet straight from SharePoint (components/benefitsBrowser.ts), so patient
+ * data never reaches the estimator's server. A lookup returns only the matching row's benefit figures and insurance
+ * name, never another row, a name or a date of birth. DECISIONS #35 and #38.
  */
 
 export type BenefitsField =

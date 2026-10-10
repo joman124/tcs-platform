@@ -90,26 +90,3 @@ export async function readFeeSchedule(): Promise<{ address: string; values: unkn
 
 /** The patients' benefits sheet is optional: the lookup appears only when BENEFITS_ITEM_ID is set. */
 export const benefitsConfigured = (env: Record<string, string | undefined> = process.env): boolean => Boolean(env.BENEFITS_ITEM_ID?.trim());
-
-/**
- * The benefits sheet's used range (read-only). It lives on the estimator site, so the drive defaults to the directory
- * workbook's. BENEFITS_SHEET names the tab; by default the first tab is read. Never cached: every lookup reads it fresh.
- */
-export async function readBenefitsSheet(): Promise<unknown[][]> {
-  const drive = process.env.BENEFITS_DRIVE_ID || need('DIRECTORY_DRIVE_ID');
-  const item = need('BENEFITS_ITEM_ID');
-  let sheet = process.env.BENEFITS_SHEET;
-  if (!sheet) {
-    const res = await graphFetch(`/drives/${drive}/items/${item}/workbook/worksheets?$select=name`);
-    if (res.status === 403 || res.status === 401) throw new Error('The app cannot read the benefits sheet. Move it to the estimator site (docs/SETUP-CHECKLIST.md, step 3d).');
-    if (res.status === 404) throw new Error('The benefits sheet was not found. Check BENEFITS_ITEM_ID (and BENEFITS_DRIVE_ID if it is not next to the directory workbook).');
-    if (!res.ok) throw new Error(`Reading the benefits sheet failed (${res.status}).`);
-    sheet = ((await res.json()) as { value: { name: string }[] }).value[0]?.name;
-    if (!sheet) throw new Error('The benefits sheet has no tabs.');
-  }
-  const res = await graphFetch(`/drives/${drive}/items/${item}/workbook/worksheets('${encodeURIComponent(sheet)}')/usedRange(valuesOnly=true)?$select=values`);
-  if (res.status === 403 || res.status === 401) throw new Error('The app cannot read the benefits sheet. Move it to the estimator site (docs/SETUP-CHECKLIST.md, step 3d).');
-  if (res.status === 404) throw new Error(`The benefits sheet tab "${sheet}" was not found. Check BENEFITS_SHEET.`);
-  if (!res.ok) throw new Error(`Reading the benefits sheet failed (${res.status}).`);
-  return ((await res.json()) as { values: unknown[][] }).values ?? [];
-}

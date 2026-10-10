@@ -330,8 +330,8 @@ try {
 
   // 19. Patient benefits: look up by name + date of birth, or type them; patient responsibility (DECISIONS #35-37)
   { const { ctx, page } = await newPage(); await page.goto(BASE);
-    const bodies = [];
-    page.on('request', (r) => { if (r.url().endsWith('/api/benefits')) bodies.push(r.postData()); });
+    const leaks = [];
+    page.on('request', (r) => { const t = `${r.url()} ${r.postData() ?? ''}`; if (/Jane|Test|1980/.test(t)) leaks.push(t); });
     await page.fill('#patient', 'Jane Test');
     ok('benefits: lookup needs the date of birth first', await page.locator('#benefits-lookup').isDisabled());
     await page.fill('#dob', '1980-01-02'); await page.click('#benefits-lookup');
@@ -340,7 +340,7 @@ try {
     await page.fill('#dob', '1980-01-01'); await page.click('#benefits-lookup');
     await page.getByText('Filled in from the benefits sheet').waitFor({ timeout: 5000 });
     ok('benefits: the lookup fills every field and the insurance company', (await page.inputValue('#b-copay')) === '30.00' && (await page.inputValue('#b-coinsurance')) === '20' && (await page.inputValue('#b-deductible-remaining')) === '400.00' && (await page.inputValue('#b-oop-remaining')) === '3200.00' && (await page.inputValue('#insurance')) === 'Aetna');
-    ok('benefits: the lookup sends only the name and date of birth', bodies.length === 2 && bodies.every((b) => Object.keys(JSON.parse(b)).sort().join() === 'dob,name'), bodies.join(' | '));
+    ok('benefits: the lookup runs in the browser; no request carries the name or date of birth', leaks.length === 0, leaks.join(' | '));
     await addLine(page, { service: 'Individual Counseling', provider: 'Dana Doctoral, PsyD', pay: 'Aetna Commercial Plans', a: '1', b: '4' }); await confirmAdd(page);
     // 4 x $137.75: $400 deductible left, $30 co-pay, 20%: 137.75 + 137.75 + (124.50 + 13.25) + (30 + 21.55) = $464.80
     ok('benefits: patient responsibility on screen ($464.80 of $551.00)', (await page.locator('#patient-responsibility').innerText()) === '$464.80', await page.locator('#patient-responsibility').innerText());
@@ -357,8 +357,8 @@ try {
     ok('benefits: clearing the estimate clears the date of birth, benefits and insurance', (await page.inputValue('#dob')) === '' && (await page.inputValue('#b-copay')) === '' && (await page.inputValue('#insurance')) === '');
     const storage = await page.evaluate(() => ({ ls: localStorage.length, ss: sessionStorage.length, cookie: document.cookie }));
     ok('benefits: nothing stored in the browser', storage.ls === 0 && storage.ss === 0 && storage.cookie === '', JSON.stringify(storage));
-    const bad = await page.evaluate(async () => (await fetch('/api/benefits', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: 'Jane Test', dob: '1980-01-01', extra: 'x' }) })).status);
-    ok('benefits: the lookup rejects any extra field', bad === 400);
+    const gone = await page.evaluate(async () => (await fetch('/api/benefits', { method: 'POST', body: '{}' })).status);
+    ok('benefits: there is no server lookup endpoint (DECISIONS #38)', gone === 404, String(gone));
     await ctx.close(); }
 
   // 14. The diagnostics page does not exist in demo mode (no sign-in there)

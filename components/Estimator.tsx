@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AddLineDialog, type NewLine } from './AddLineDialog';
 import { BenefitsPanel } from './BenefitsPanel';
+import type { BenefitsLookupSource } from './benefitsBrowser';
 import { EMPTY_BENEFITS_FORM, parseBenefits } from './benefitsForm';
 import { Modal } from './Modal';
 import { PrintSheet, type PrintLine } from './PrintSheet';
@@ -43,7 +44,7 @@ export function Estimator({
   loadedAt,
   userName,
   logEnabled,
-  benefitsLookup,
+  benefitsSource,
   signOutAction,
 }: {
   data: EngineData;
@@ -51,7 +52,7 @@ export function Estimator({
   loadedAt: number;
   userName: string | null;
   logEnabled: boolean;
-  benefitsLookup: boolean;
+  benefitsSource: BenefitsLookupSource;
   signOutAction: (() => Promise<void>) | null;
 }) {
   const demo = source === 'demo';
@@ -261,7 +262,7 @@ export function Estimator({
           <div className="pname">
             <label htmlFor="patient">Patient name</label>
             <input id="patient" className="field" value={patientName} onChange={(e) => setPatientName(e.target.value)} autoComplete="off" autoCorrect="off" spellCheck={false} />
-            <span className="hint">Held in this browser only. Never saved{benefitsLookup ? '; sent only to look up benefits' : ' or sent'}.</span>
+            <span className="hint">Held in this browser only. Never saved or sent to the estimator's server.</span>
           </div>
 
           <BenefitsPanel
@@ -273,7 +274,7 @@ export function Estimator({
             insurance={insurance}
             setInsurance={setInsurance}
             errors={benefitErrors}
-            lookupEnabled={benefitsLookup}
+            source={benefitsSource}
           />
 
           <div className="card">

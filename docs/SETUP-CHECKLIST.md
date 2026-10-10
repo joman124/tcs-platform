@@ -96,7 +96,12 @@ GET https://graph.microsoft.com/v1.0/drives/<DIRECTORY_DRIVE_ID>/root:/<BENEFITS
 
 Copy `id`. This is **`BENEFITS_ITEM_ID`**. If the patients are not on the first tab, also set **`BENEFITS_SHEET`** to the tab name.
 
-The app reads the sheet only to answer a lookup (name + date of birth → that one row's benefit figures), never caches it and never logs names, dates of birth or benefits.
+**The lookup runs in the staff member's browser, not on the server** (the estimator is hosted on Vercel, which has no BAA): the browser signs in to Microsoft with the staff member's own account, reads the sheet straight from SharePoint, and finds the row itself. So:
+- everyone who uses the lookup must be a **member of the estimator site** (they need to be able to open the file);
+- the admin adds the sign-in page and one delegated permission to the Entra app (step 5, items 1b and 2b);
+- the first lookup may show a Microsoft sign-in popup; allow popups for the estimator's address.
+
+Names, dates of birth and benefits never go to the estimator's server and are never logged.
 
 ## 4. Create the estimate log list
 
@@ -139,7 +144,9 @@ You said an MHCA admin already gave consent; this step confirms exactly what is 
 > Hello, for the MHCA Treatment Plan Estimator app, please:
 >
 > 1. In Microsoft Entra admin center → App registrations, check (or create) an app named **"MHCA Treatment Plan Estimator"**: supported account types **"Accounts in this organizational directory only"** (single tenant); platform **Web**; redirect URI **`https://mhca-estimator.vercel.app/api/auth/callback/microsoft-entra-id`**.
+>    1b. *(Only if the benefits lookup is used, setup step 3d.)* Under **Authentication** → **Add a platform** → **Single-page application**, add the redirect URI **`https://mhca-estimator.vercel.app/msal-redirect.html`**.
 > 2. Under **API permissions**, add Microsoft Graph **Application** permission **`Sites.Selected`** (and keep the default delegated `User.Read`), then **Grant admin consent for MHCA**. Please do not add `Sites.Read.All` or `Sites.ReadWrite.All`: the app should reach only the sites granted below.
+>    2b. *(Only if the benefits lookup is used.)* Also add the Microsoft Graph **Delegated** permission **`Files.Read.All`** and grant admin consent. It lets the estimator read, in the staff member's own browser and on their behalf, only files that person can already open (the benefits sheet); the estimator's server never uses it.
 > 3. Grant the app access to the **"MHCA Estimator"** site (`<site web address>`) with the **write** role (it reads the directory workbook and adds rows to the estimate log list there). Graph request, run as an admin with `Sites.FullControl.All`:
 >
 >    `POST https://graph.microsoft.com/v1.0/sites/<SITE-ID>/permissions`

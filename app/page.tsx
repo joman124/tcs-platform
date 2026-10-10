@@ -10,10 +10,12 @@ export const dynamic = 'force-dynamic';
 export default async function Page() {
   const demo = isDemo();
   let userName: string | null = null;
+  let userEmail: string | undefined;
   if (!demo) {
     const session = await auth();
     if (!session?.user) redirect('/api/auth/signin');
     userName = session.user.name ?? session.user.email ?? 'Signed in';
+    userEmail = session.user.email ?? undefined;
   }
   try {
     const loaded = await loadData();
@@ -28,7 +30,20 @@ export default async function Page() {
         loadedAt={loaded.loadedAt}
         userName={userName}
         logEnabled={!demo && logConfigured()}
-        benefitsLookup={demo || benefitsConfigured()}
+        benefitsSource={
+          demo
+            ? 'demo'
+            : benefitsConfigured()
+              ? {
+                  clientId: process.env.AZURE_CLIENT_ID ?? '',
+                  tenantId: process.env.AZURE_TENANT_ID ?? '',
+                  drive: process.env.BENEFITS_DRIVE_ID || (process.env.DIRECTORY_DRIVE_ID ?? ''),
+                  item: process.env.BENEFITS_ITEM_ID ?? '',
+                  ...(process.env.BENEFITS_SHEET ? { sheet: process.env.BENEFITS_SHEET } : {}),
+                  ...(userEmail ? { loginHint: userEmail } : {}),
+                }
+              : null
+        }
         signOutAction={demo ? null : signOutAction}
       />
     );

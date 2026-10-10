@@ -1,5 +1,5 @@
 import { priceToCents } from './lineForm';
-import { EMPTY_BENEFITS, type Benefits } from '@/src/engine';
+import { EMPTY_BENEFITS, type Benefits } from '../src/engine';
 
 export type BenefitsKey = 'copay' | 'deductible' | 'deductibleRemaining' | 'coinsurance' | 'outOfPocket' | 'outOfPocketRemaining';
 
