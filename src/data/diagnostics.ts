@@ -24,6 +24,7 @@ export const SETTINGS: readonly SettingSpec[] = [
   { name: 'DIRECTORY_ITEM_ID', required: true, purpose: 'Directory workbook file' },
   { name: 'LOG_SITE_ID', required: false, purpose: 'Estimate log site (blank = logging off)' },
   { name: 'LOG_LIST_ID', required: false, purpose: 'Estimate log list (blank = logging off)' },
+  { name: 'BENEFITS_ITEM_ID', required: false, purpose: 'Patient benefits sheet (blank = benefits typed by hand only)' },
 ];
 
 export interface SettingStatus {
@@ -65,6 +66,11 @@ export interface DiagnosticsReport {
   /** The live Fee Schedule: layout found, cell counts, and PayerKey payers with no column on the sheet. */
   feeSchedule: Check<{ headerRow: number; firstDataRow: number; visits: number; usable: number; quarantined: number; ambiguous: number; missingPayers: string[]; rowShift: number }>;
   log: Check<{ status: number }> | { ok: null; reason: string };
+  /**
+   * Whether the benefits lookup is set up. The sheet holds patient data and the server has no BAA, so it is never read
+   * here; the page checks its columns in the browser instead (DECISIONS #38).
+   */
+  benefits: { configured: boolean };
   loaded: Check<{ loadedAt: string; source: string }>;
 }
 
@@ -141,6 +147,8 @@ export async function runDiagnostics(deps: DiagnosticsDeps): Promise<Diagnostics
     }
   }
 
+  const benefits = { configured: has('BENEFITS_ITEM_ID') };
+
   let loaded: DiagnosticsReport['loaded'];
   try {
     const l = await deps.loadData();
@@ -149,5 +157,5 @@ export async function runDiagnostics(deps: DiagnosticsDeps): Promise<Diagnostics
     loaded = { ok: false, error: errorText(e) };
   }
 
-  return { generatedAt: (deps.now ?? new Date()).toISOString(), settings, missingRequired, workbook, feeSchedule, log, loaded };
+  return { generatedAt: (deps.now ?? new Date()).toISOString(), settings, missingRequired, workbook, feeSchedule, log, benefits, loaded };
 }

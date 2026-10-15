@@ -1,6 +1,7 @@
 import { notFound, redirect } from 'next/navigation';
 import { auth } from '@/auth';
 import { runDiagnostics, type Check } from '@/src/data/diagnostics';
+import { BenefitsSheetCheck } from '@/components/BenefitsSheetCheck';
 import { listWorksheets, readFeeSchedule, readSheet } from '@/src/data/graph';
 import { isDemo, loadData } from '@/src/data/load';
 import { readLogList } from '@/src/data/log';
@@ -109,6 +110,24 @@ export default async function Diagnostics() {
         Estimate log list: <Mark ok={r.log.ok} />
       </h2>
       <p>{r.log.ok === null ? r.log.reason : r.log.ok ? `Readable (HTTP ${r.log.value.status}). Read-only check; nothing was written.` : r.log.error}</p>
+
+      <h2>
+        Patient benefits sheet: <Mark ok={r.benefits.configured ? true : null} />
+      </h2>
+      {r.benefits.configured ? (
+        <BenefitsSheetCheck
+          source={{
+            clientId: env.AZURE_CLIENT_ID ?? '',
+            tenantId: env.AZURE_TENANT_ID ?? '',
+            drive: env.BENEFITS_DRIVE_ID || (env.DIRECTORY_DRIVE_ID ?? ''),
+            item: env.BENEFITS_ITEM_ID ?? '',
+            ...(env.BENEFITS_SHEET ? { sheet: env.BENEFITS_SHEET } : {}),
+            ...(session.user.email ? { loginHint: session.user.email } : {}),
+          }}
+        />
+      ) : (
+        <p>No benefits sheet (BENEFITS_ITEM_ID is not set): benefits are typed in by hand.</p>
+      )}
 
       <h2>
         Loaded data: <Mark ok={r.loaded.ok} />

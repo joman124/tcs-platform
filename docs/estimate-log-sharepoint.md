@@ -14,7 +14,7 @@ One list item per priced line. Blocked lines are not logged. Fields (see `src/en
 | PaymentType, Payer | cash, insurance or custom; parent payer only (not sub-plan, not member info), blank for cash and custom |
 | PerVisit, Sessions, LineTotal, EstimateFullPlanTotal | dollars |
 
-Not stored: patient name, free text, exact time, the admin's identity, plan sub-names, any CPT or credentialing detail.
+Not stored: patient name, date of birth, insurance benefits (co-pay, deductible, co-insurance, out of pocket), free text, exact time, the admin's identity, plan sub-names, any CPT or credentialing detail.
 
 ## Setup (one-time, needs an MHCA admin)
 

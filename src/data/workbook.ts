@@ -183,6 +183,7 @@ export function parseWorkbook(sheets: Sheets, now: Date = new Date()): EngineDat
       cashPrice: price,
       cashStatus: (status === 'ok' && price !== null && price > 0 ? 'ok' : status === 'zero' || price === 0 ? 'zero' : status === 'blank' ? 'blank' : status === 'error' ? 'error' : 'text') as Service['cashStatus'],
       ...(tiers.length ? { allowedTiers: tiers } : {}),
+      ...(str(col(r, 'Component CPTs')) ? { codes: str(col(r, 'Component CPTs')) } : {}),
     };
   });
 

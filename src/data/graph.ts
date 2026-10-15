@@ -87,3 +87,6 @@ export async function readFeeSchedule(): Promise<{ address: string; values: unkn
   if (!res.ok) throw new Error(`Reading the Fee Schedule failed (${res.status}).`);
   return (await res.json()) as { address: string; values: unknown[][] };
 }
+
+/** The patients' benefits sheet is optional: the lookup appears only when BENEFITS_ITEM_ID is set. */
+export const benefitsConfigured = (env: Record<string, string | undefined> = process.env): boolean => Boolean(env.BENEFITS_ITEM_ID?.trim());

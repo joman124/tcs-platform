@@ -89,9 +89,12 @@ try {
     ok('cost view: monthly', (await view('monthly')) === '$1,044.59' || (await view('monthly')) === '$1,044.60');
     ok('cost view: full plan', (await view('plan')) === '$3,767.75');
     const t = await printText(page);
-    ok('patient copy shows weekly, monthly and full plan', /Per week/.test(t) && /Per month/.test(t) && /Full treatment plan/.test(t));
-    ok('weekly/monthly are labeled as repeating visits when a one-time service is present', /repeating visits/.test(t));
-    ok('patient copy omits CPT, payer, status and admin words', !/Aetna|9\d{4}|Credential|Ready|Blocked|Medicare|PsyD|LPC|Insurance/.test(t), t);
+    ok('patient estimate: code - service, visits and estimated totals', t.includes('90837 - Individual Counseling') && t.includes('90791, 96130 - ADHD Evaluation') && /Estimated Allowable\s+\$3,767\.75/.test(t), t);
+    ok('patient estimate: no weekly or monthly breakdown (DECISIONS #36)', !/Per week|Per month/.test(t));
+    ok('patient estimate: insurance company shown; plan names, credentials and statuses are not', t.includes('Insurance Company:') && t.includes('Aetna') && !/Commercial Plans|Credential|Ready|Blocked|Medicare|PsyD|LPC/.test(t), t);
+    ok('patient estimate: no benefits entered, so the patient share is pending, not $0', t.includes('Pending benefits check'));
+    ok('patient estimate: page 2 explains the estimate and defines the terms', t.includes('How was this estimate decided?') && t.includes('Co-Insurance') && t.includes('Out of Pocket'));
+    ok('patient estimate: estimate ID printed', /Estimate ID\s+[A-F0-9]{10}/.test(t), t);
     ok('patient copy has contact line and no street address', t.includes('info@mentalhealthcenter.com') && !/\d{3,5} [A-Z][a-z]+ (St|Street|Ave|Avenue|Rd|Road|Blvd|Dr)\b/.test(t));
     ok('patient copy has patient name and date', t.includes('Test Patient') && /20\d\d/.test(t));
     await ctx.close(); }
@@ -124,13 +127,14 @@ try {
     for (const pg of bbox.split('<page ').slice(1)) {
       const words = [...pg.matchAll(/<word xMin="([\d.]+)" yMin="([\d.]+)"[^>]*>([^<]*)<\/word>/g)].map((m) => ({ x: +m[1], y: +m[2], t: m[3] }));
       headers += words.filter((w) => w.t === 'visit' || w.t === 'Per').length ? 1 : 0;
-      for (const w of words.filter((w) => w.x < 120 && /^(Individual|Couples|Group|Medication|ADHD)$/.test(w.t))) {
+      for (const w of words.filter((w) => w.x < 120 && /^\d{5},?$/.test(w.t))) {
         rowsSeen++;
         if (!words.some((v) => Math.abs(v.y - w.y) < 8 && v.x > 440 && v.t.startsWith('$'))) split = true;
       }
     }
     ok('no table row is split across pages', !split && rowsSeen >= 30, `rows seen=${rowsSeen}`);
-    ok('table header repeats on every page', headers >= pages, `headers=${headers} pages=${pages}`);
+    const lastPage = bbox.split('<page ').slice(-1)[0];
+    ok('table header repeats on every services page; the explanations start on their own last page', headers >= pages - 1 && lastPage.includes('>decided?<'), `headers=${headers} pages=${pages}`);
     ok('demo output carries a SAMPLE DATA watermark', (await printText(page)).includes('SAMPLE DATA'));
     await ctx.close(); }
 
@@ -211,10 +215,10 @@ try {
     ok('edit: footer total and scheduling plan follow the edit', (await page.locator('#view-total').innerText()) === '$1,653.00' && (await page.locator('.foot .plan').innerText()).includes('Dana Doctoral · Individual Counseling · 2 times a week for 6 weeks'));
     await page.click('button:has-text("Preview patient copy")');
     const pv = await page.locator('.preview .paper').innerText();
-    ok('edit: preview shows the edited line', pv.includes('Dana Doctoral') && pv.includes('2 times a week for 6 weeks') && !pv.includes('Casey'));
+    ok('edit: preview shows the edited line', pv.includes('Dana Doctoral') && /\$137\.75\s+12\s+\$1,653\.00/.test(pv) && !pv.includes('Casey'), pv);
     await page.click('.preview-bar button:has-text("Close")');
     const t = await printText(page);
-    ok('edit: print copy shows the edited values only', t.includes('Dana Doctoral') && t.includes('2 times a week for 6 weeks') && t.includes('$1,653.00') && !t.includes('Casey') && !t.includes('$413.24'), t);
+    ok('edit: print copy shows the edited values only', t.includes('Dana Doctoral') && /\$137\.75\s+12\s+\$1,653\.00/.test(t) && !t.includes('Casey') && !t.includes('$413.24'), t);
     // Cancel and Escape change nothing
     await editRow(page, 0); await page.fill('#f1', '3'); await page.click('.dlg-actions button:has-text("Cancel")');
     ok('edit: Cancel leaves the line exactly as it was', (await lineTotal(page, 0)) === '$1,653.00' && (await page.locator('[role=dialog]').count()) === 0);
@@ -322,6 +326,39 @@ try {
     const base = { estimateId: 'x', date: '2026-10-06', serviceId: 'CUSTOM', providerId: '', paymentType: 'custom', payer: '', perVisitCents: 4500, sessions: 1, totalCents: 4500, estimateFullPlanCents: 4500 };
     ok('custom log row: accepted by the server (service CUSTOM, no provider, no payer)', (await post(base)) === 200);
     ok('custom log row: the description in place of the service id is rejected', (await post({ ...base, serviceId: 'Lab work (invented)' })) === 400);
+    await ctx.close(); }
+
+  // 19. Patient benefits: look up by name + date of birth, or type them; patient responsibility (DECISIONS #35-37)
+  { const { ctx, page } = await newPage(); await page.goto(BASE);
+    const leaks = [];
+    page.on('request', (r) => { const t = `${r.url()} ${r.postData() ?? ''}`; if (/Jane|Test|1980/.test(t)) leaks.push(t); });
+    await page.fill('#patient', 'Jane Test');
+    ok('benefits: lookup needs the date of birth first', await page.locator('#benefits-lookup').isDisabled());
+    await page.fill('#dob', '1980-01-02'); await page.click('#benefits-lookup');
+    await page.getByText('No row in the benefits sheet').waitFor({ timeout: 5000 });
+    ok('benefits: no matching row says so and leaves the fields for typing', (await page.inputValue('#b-copay')) === '');
+    await page.fill('#dob', '1980-01-01'); await page.click('#benefits-lookup');
+    await page.getByText('Filled in from the benefits sheet').waitFor({ timeout: 5000 });
+    ok('benefits: the lookup fills every field and the insurance company', (await page.inputValue('#b-copay')) === '30.00' && (await page.inputValue('#b-coinsurance')) === '20' && (await page.inputValue('#b-deductible-remaining')) === '400.00' && (await page.inputValue('#b-oop-remaining')) === '3200.00' && (await page.inputValue('#insurance')) === 'Aetna');
+    ok('benefits: the lookup runs in the browser; no request carries the name or date of birth', leaks.length === 0, leaks.join(' | '));
+    await addLine(page, { service: 'Individual Counseling', provider: 'Dana Doctoral, PsyD', pay: 'Aetna Commercial Plans', a: '1', b: '4' }); await confirmAdd(page);
+    // 4 x $137.75: $400 deductible left, $30 co-pay, 20%: 137.75 + 137.75 + (124.50 + 13.25) + (30 + 21.55) = $464.80
+    ok('benefits: patient responsibility on screen ($464.80 of $551.00)', (await page.locator('#patient-responsibility').innerText()) === '$464.80', await page.locator('#patient-responsibility').innerText());
+    let t = await printText(page);
+    ok('benefits: the estimate prints the benefit summary and both totals', /Estimated Allowable\s+\$551\.00/.test(t) && t.includes('Estimated Patient Responsibility') && t.includes('$464.80') && t.includes('Deductible Remaining') && t.includes('$400.00') && t.includes('20%'), t);
+    ok('benefits: no date of birth on the estimate', !t.includes('1980'));
+    await page.fill('#b-copay', '0');
+    // $0 co-pay: 137.75 + 137.75 + (124.50 + 20% of 13.25) + 20% of 137.75 = $430.20
+    ok('benefits: a corrected field recalculates ($430.20)', (await page.locator('#patient-responsibility').innerText()) === '$430.20', await page.locator('#patient-responsibility').innerText());
+    await page.fill('#b-coinsurance', '150');
+    ok('benefits: an impossible percentage is flagged and stops printing', (await page.getByText('Enter a percentage from 0 to 100.').isVisible()) && (await page.locator('#print').isDisabled()));
+    await page.fill('#b-coinsurance', '20');
+    await page.click('button:has-text("New estimate (clear)")'); await page.click('button:has-text("Yes, clear")');
+    ok('benefits: clearing the estimate clears the date of birth, benefits and insurance', (await page.inputValue('#dob')) === '' && (await page.inputValue('#b-copay')) === '' && (await page.inputValue('#insurance')) === '');
+    const storage = await page.evaluate(() => ({ ls: localStorage.length, ss: sessionStorage.length, cookie: document.cookie }));
+    ok('benefits: nothing stored in the browser', storage.ls === 0 && storage.ss === 0 && storage.cookie === '', JSON.stringify(storage));
+    const gone = await page.evaluate(async () => (await fetch('/api/benefits', { method: 'POST', body: '{}' })).status);
+    ok('benefits: there is no server lookup endpoint (DECISIONS #38)', gone === 404, String(gone));
     await ctx.close(); }
 
   // 14. The diagnostics page does not exist in demo mode (no sign-in there)

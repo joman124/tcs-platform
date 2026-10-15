@@ -120,4 +120,11 @@ describe('runDiagnostics', () => {
     expect(r.workbook.ok && r.workbook.value.parsed.ok).toBe(true);
     expect(r.feeSchedule).toMatchObject({ ok: true, value: { rowShift: -3 } });
   });
+
+  it('the benefits sheet is only reported as set up or not: the server never reads it (no BAA with the host)', async () => {
+    expect((await runDiagnostics(deps())).benefits).toEqual({ configured: false });
+    const r = await runDiagnostics(deps({ env: { ...fullEnv, BENEFITS_ITEM_ID: SECRETISH } }));
+    expect(r.benefits).toEqual({ configured: true });
+    expect(JSON.stringify(r)).not.toContain(SECRETISH);
+  });
 });

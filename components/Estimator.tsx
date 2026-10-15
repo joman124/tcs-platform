@@ -2,12 +2,16 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AddLineDialog, type NewLine } from './AddLineDialog';
+import { BenefitsPanel } from './BenefitsPanel';
+import type { BenefitsLookupSource } from './benefitsBrowser';
+import { EMPTY_BENEFITS_FORM, parseBenefits } from './benefitsForm';
 import { Modal } from './Modal';
 import { PrintSheet, type PrintLine } from './PrintSheet';
 import { displayName, fmt, freqText, todayISO } from './format';
 import {
   buildLogRows,
   lineView,
+  patientResponsibility,
   planView,
   priceLine,
   summarize,
@@ -25,6 +29,8 @@ interface Line {
 
 const IDLE_MS = 15 * 60 * 1000;
 const VIEW_LABEL: Record<CostView, string> = { weekly: 'Weekly', monthly: 'Monthly', plan: 'Full plan' };
+/** Short random estimate ID: printed on the patient copy and used for the log rows, so the two can be matched. */
+const newEstimateId = (): string => crypto.randomUUID().replace(/-/g, '').slice(0, 10).toUpperCase();
 const paymentText = (p: Payment): string => (p.type === 'cash' ? 'Cash' : p.type === 'custom' ? 'Custom price' : `Insurance · ${p.subPlan}`);
 
 /**
@@ -38,6 +44,7 @@ export function Estimator({
   loadedAt,
   userName,
   logEnabled,
+  benefitsSource,
   signOutAction,
 }: {
   data: EngineData;
@@ -45,10 +52,15 @@ export function Estimator({
   loadedAt: number;
   userName: string | null;
   logEnabled: boolean;
+  benefitsSource: BenefitsLookupSource;
   signOutAction: (() => Promise<void>) | null;
 }) {
   const demo = source === 'demo';
   const [patientName, setPatientName] = useState('');
+  const [dob, setDob] = useState('');
+  const [benefitsForm, setBenefitsForm] = useState(EMPTY_BENEFITS_FORM);
+  const [insurance, setInsurance] = useState('');
+  const [estimateId, setEstimateId] = useState('');
   const [lines, setLines] = useState<Line[]>([]);
   const [view, setView] = useState<CostView>('plan');
   const [adding, setAdding] = useState(false);
@@ -65,17 +77,25 @@ export function Estimator({
   const summary = useMemo(() => summarize(results), [results]);
   const providerById = useMemo(() => new Map(data.providers.map((p) => [p.id, p])), [data]);
   const total = planView(summary, view);
+  const { benefits, errors: benefitErrors } = useMemo(() => parseBenefits(benefitsForm), [benefitsForm]);
+  const responsibility = useMemo(() => patientResponsibility(lines.map((l) => l.input), results, benefits), [lines, results, benefits]);
+  const insuranceText = insurance.trim() || responsibility.payers.join(', ');
+  const serviceById = useMemo(() => new Map(data.services.map((s) => [s.id, s])), [data]);
 
   // A custom line may have no provider ('' = no specific provider); every other line needs one.
   const printLines: PrintLine[] = lines.flatMap((l, i) => {
     const provider = providerById.get(l.input.providerId);
     const result = results[i];
     const custom = l.input.payment.type === 'custom';
-    return (provider || (custom && l.input.providerId === '')) && result?.ok ? [{ serviceName: l.serviceName, provider, input: l.input, result }] : [];
+    const code = serviceById.get(l.input.serviceId)?.codes;
+    return (provider || (custom && l.input.providerId === '')) && result?.ok ? [{ serviceName: l.serviceName, ...(code ? { code } : {}), provider, input: l.input, result }] : [];
   });
 
   const clearAll = useCallback(() => {
     setPatientName('');
+    setDob('');
+    setBenefitsForm(EMPTY_BENEFITS_FORM);
+    setInsurance('');
     setLines([]);
     setView('plan');
     setAdding(false);
@@ -85,9 +105,10 @@ export function Estimator({
     logged.current = false;
   }, []);
 
-  // Any change to the estimate (adding, editing or removing a line) means it has not been logged yet.
+  // Any change to the estimate (adding, editing or removing a line) means it has not been logged yet, and is a new estimate.
   useEffect(() => {
     logged.current = false;
+    setEstimateId(newEstimateId());
   }, [lines]);
 
   // Auto-clear after 15 idle minutes.
@@ -110,8 +131,8 @@ export function Estimator({
   }, [clearAll]);
 
   // After printing: log de-identified figures once, then offer to clear for the next patient.
-  const lastLines = useRef({ lines, results, summary });
-  lastLines.current = { lines, results, summary };
+  const lastLines = useRef({ lines, results, summary, estimateId });
+  lastLines.current = { lines, results, summary, estimateId };
   useEffect(() => {
     const onAfterPrint = () => {
       const cur = lastLines.current;
@@ -119,7 +140,7 @@ export function Estimator({
       setBar('printed');
       if (logEnabled && !logged.current) {
         logged.current = true;
-        const rows = buildLogRows(crypto.randomUUID(), todayISO(), cur.lines.map((l) => l.input), cur.results, cur.summary);
+        const rows = buildLogRows(cur.estimateId || newEstimateId(), todayISO(), cur.lines.map((l) => l.input), cur.results, cur.summary);
         if (rows.length > 0) {
           fetch('/api/log', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rows }) })
             .then((r) => r.json())
@@ -144,7 +165,16 @@ export function Estimator({
     setEditing(null);
   };
 
-  const printReason = lines.length === 0 ? 'Add at least one service.' : summary.blockedCount > 0 ? 'Edit or remove blocked lines first.' : !patientName.trim() ? 'Enter the patient name.' : null;
+  const printReason =
+    lines.length === 0
+      ? 'Add at least one service.'
+      : summary.blockedCount > 0
+        ? 'Edit or remove blocked lines first.'
+        : !patientName.trim()
+          ? 'Enter the patient name.'
+          : Object.keys(benefitErrors).length > 0
+            ? 'Fix the benefit amounts.'
+            : null;
   const canPrint = printReason === null;
   const doPrint = () => {
     if (!canPrint) return;
@@ -166,6 +196,19 @@ export function Estimator({
       setRefreshMsg(e instanceof Error ? e.message : 'Refresh failed');
     }
   }
+
+  const sheet = (
+    <PrintSheet
+      patientName={patientName}
+      dateText={new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+      insurance={insuranceText}
+      lines={printLines}
+      responsibility={responsibility}
+      benefits={benefits}
+      estimateId={estimateId}
+      demo={demo}
+    />
+  );
 
   const switchToCash = (id: string) =>
     setLines((ls) => ls.map((l) => (l.id === id ? { ...l, input: { ...l.input, payment: { type: 'cash' } } } : l)));
@@ -219,8 +262,20 @@ export function Estimator({
           <div className="pname">
             <label htmlFor="patient">Patient name</label>
             <input id="patient" className="field" value={patientName} onChange={(e) => setPatientName(e.target.value)} autoComplete="off" autoCorrect="off" spellCheck={false} />
-            <span className="hint">Held in this browser only. Never saved or sent.</span>
+            <span className="hint">Held in this browser only. Never saved or sent to the estimator's server.</span>
           </div>
+
+          <BenefitsPanel
+            patientName={patientName}
+            dob={dob}
+            setDob={setDob}
+            form={benefitsForm}
+            setForm={setBenefitsForm}
+            insurance={insurance}
+            setInsurance={setInsurance}
+            errors={benefitErrors}
+            source={benefitsSource}
+          />
 
           <div className="card">
             <table aria-label="Estimate lines">
@@ -328,6 +383,10 @@ export function Estimator({
               ))}
             </div>
             {total.note && <div className="small">{total.note}</div>}
+            <div className="resp-line">
+              Patient responsibility:{' '}
+              <b id="patient-responsibility">{responsibility.patientCents === null ? 'enter or look up benefits' : fmt(responsibility.patientCents)}</b>
+            </div>
           </div>
           <div className="actions">
             <button type="button" className="btn light" onClick={() => setPreview(true)} disabled={printLines.length === 0}>
@@ -358,7 +417,7 @@ export function Estimator({
                 {printReason && <span className="note">{printReason}</span>}
               </div>
               <div className="scroll">
-                <PrintSheet patientName={patientName} dateText={new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} lines={printLines} summary={summary} demo={demo} />
+                {sheet}
               </div>
             </div>
           </Modal>
@@ -367,7 +426,7 @@ export function Estimator({
 
       {/* The only thing that prints. Rendered always so Print works without opening the preview. */}
       <div className="print-only">
-        <PrintSheet patientName={patientName} dateText={new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })} lines={printLines} summary={summary} demo={demo} />
+        {sheet}
       </div>
     </>
   );
